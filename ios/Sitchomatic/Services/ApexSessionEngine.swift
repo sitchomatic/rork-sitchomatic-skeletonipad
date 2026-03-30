@@ -5,10 +5,9 @@
 // Provides LoginSiteWebSession, LoginWebSession, BPointWebSession,
 // WebViewTracker, DeadSessionDetector, SessionActivityMonitor.
 //
-// Each session uses a SHARED WKProcessPool via WebViewProcessPoolManager
-// + nonPersistent WKWebsiteDataStore per instance for cookie isolation,
-// with native async WebKit evaluation and WKScriptMessageHandlerWithReply
-// for zero-bridge JS communication.
+// Each session uses a SHARED WKProcessPool (via WebViewProcessPoolManager)
+// + nonPersistent WKWebsiteDataStore per instance with native async WebKit
+// evaluation and WKScriptMessageHandlerWithReply for zero-bridge JS communication.
 
 import Foundation
 @preconcurrency import WebKit
@@ -359,6 +358,9 @@ class LoginSiteWebSession: NSObject {
     }
 
     /// Per-instance isolated data store (Apex architecture — cookies/storage isolated per session).
+    /// Shared process pool via WebViewProcessPoolManager (reduces WebContent process count).
+    private let pairIndex: Int
+    /// Per-instance isolated data store (cookie/storage isolation preserved).
     private let isolatedDataStore = WKWebsiteDataStore.nonPersistent()
 
     private var pageLoadContinuation: CheckedContinuation<Bool, Never>?
@@ -371,9 +373,11 @@ class LoginSiteWebSession: NSObject {
 
     init(targetURL: URL,
          networkConfig: ActiveNetworkConfig = .direct,
-         proxyTarget: ProxyRotationService.ProxyTarget? = nil) {
+         proxyTarget: ProxyRotationService.ProxyTarget? = nil,
+         pairIndex: Int = 0) {
         self.targetURL = targetURL
         self.networkConfig = networkConfig
+        self.pairIndex = pairIndex
         self.proxyTarget = proxyTarget ?? Self.inferProxyTarget(for: targetURL)
         super.init()
     }
@@ -401,7 +405,7 @@ class LoginSiteWebSession: NSObject {
         processTerminated = false
 
         let config = WKWebViewConfiguration()
-        config.processPool = WebViewProcessPoolManager.shared.pool()
+        config.processPool = WebViewProcessPoolManager.shared.pool(forPairIndex: pairIndex)
         config.websiteDataStore = isolatedDataStore
         config.preferences.javaScriptCanOpenWindowsAutomatically = true
         config.defaultWebpagePreferences.allowsContentJavaScript = true
@@ -1629,6 +1633,7 @@ class LoginWebSession: NSObject, ScreenshotCapableSession {
     // MARK: Private / Isolation State
 
     private let sessionId: UUID = UUID()
+    private let pairIndex: Int
     private let isolatedDataStore = WKWebsiteDataStore.nonPersistent()
 
     private var pageLoadContinuation: CheckedContinuation<Bool, Never>?
@@ -1652,17 +1657,22 @@ class LoginWebSession: NSObject, ScreenshotCapableSession {
     ]
     """
 
+    init(pairIndex: Int = 0) {
+        self.pairIndex = pairIndex
+        super.init()
+    }
+
     // MARK: Lifecycle
 
     func setUp() {
-        logger.log("LoginWebSession[HF]: setUp (stealth=\(stealthEnabled), network=\(networkConfig.label), isolated=true)",
+        logger.log("LoginWebSession[HF]: setUp (stealth=\(stealthEnabled), network=\(networkConfig.label), pool=shared)",
                    category: .webView, level: .debug)
         if webView != nil {
             tearDown()
         }
 
         let config = WKWebViewConfiguration()
-        config.processPool = WebViewProcessPoolManager.shared.pool()
+        config.processPool = WebViewProcessPoolManager.shared.pool(forPairIndex: pairIndex)
         config.websiteDataStore = isolatedDataStore
         config.preferences.javaScriptCanOpenWindowsAutomatically = true
         config.defaultWebpagePreferences.allowsContentJavaScript = true
@@ -2371,7 +2381,7 @@ class BPointWebSession: NSObject, ScreenshotCapableSession {
     // MARK: Private / Isolation State
 
     private let sessionId: UUID = UUID()
-    private let isolatedDataStore = WKWebsiteDataStore.nonPersistent()
+ii    private let isolatedDataStore = WKWebsiteDataStore.nonPersistent()
 
     private var pageLoadContinuation: CheckedContinuation<Bool, Never>?
     private var isPageLoaded: Bool = false
@@ -2395,15 +2405,20 @@ class BPointWebSession: NSObject, ScreenshotCapableSession {
     ]
     """
 
+    init(pairIndex: Int = 0) {
+        self.pairIndex = pairIndex
+        super.init()
+    }
+
     // MARK: Lifecycle
 
     func setUp() {
-        logger.log("BPointWebSession[HF]: setUp (stealth=\(stealthEnabled), network=\(networkConfig.label), isolated=true)",
+        logger.log("BPointWebSession[HF]: setUp (stealth=\(stealthEnabled), network=\(networkConfig.label), pool=shared)",
                    category: .webView, level: .debug)
         if webView != nil { tearDown() }
 
         let config = WKWebViewConfiguration()
-        config.processPool = WebViewProcessPoolManager.shared.pool()
+        config.processPool = WebViewProcessPoolManager.shared.pool(forPairIndex: pairIndex)
         config.websiteDataStore = isolatedDataStore
         config.preferences.javaScriptCanOpenWindowsAutomatically = true
         config.defaultWebpagePreferences.allowsContentJavaScript = true

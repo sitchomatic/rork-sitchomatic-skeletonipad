@@ -466,7 +466,7 @@ public final class AutomationOrchestrator {
     public nonisolated(unsafe) static let shared = AutomationOrchestrator()
 
     private let logger = Logger(subsystem: "com.hyperflow.scraper", category: "Orchestrator")
-    private var maxConcurrentPairs: Int { DeviceCapability.performanceProfile.maxConcurrentPairs }
+    private let maxConcurrentPairs = DeviceCapability.performanceProfile.maxConcurrentPairs
     private(set) var activePairCount = 0
     private(set) var completedPairs = 0
     private(set) var failedPairs = 0
@@ -478,7 +478,7 @@ public final class AutomationOrchestrator {
     public func runPairedTasks(_ tasks: [PairedTask], allowedDomains: Set<String> = []) async {
         logger.info("Orchestrator: launching \(tasks.count) paired tasks (max \(self.maxConcurrentPairs) concurrent)")
 
-        // Pre-warm recycler pool at batch start
+        // Pre-warm the recycler before batch execution
         WebViewRecycler.shared.prewarm()
 
         // Process tasks in batches of maxConcurrentPairs
@@ -523,11 +523,11 @@ public final class AutomationOrchestrator {
         logger.info("Orchestrator: complete — \(self.completedPairs) succeeded, \(self.failedPairs) failed")
     }
 
+    /// Emergency stop — flush all recycled views to free memory immediately.
     public func emergencyStop() {
         WebViewRecycler.shared.emergencyFlush()
         WebViewPool.shared.reset()
-        reset()
-        logger.warning("Orchestrator: EMERGENCY STOP — flushed recycler and reset pool")
+        logger.warning("Orchestrator: emergency stop — recycler flushed, pool reset")
     }
 
     public func reset() {

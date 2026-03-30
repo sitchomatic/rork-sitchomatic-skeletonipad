@@ -180,7 +180,11 @@ final class CrashProtectionService {
             DebugLogger.shared.handleMemoryPressure()
         }
 
-
+        // Drain pre-warmed WebViews from the recycler pool on memory pressure
+        if tier.drainPreWarmed {
+            WebViewRecycler.shared.emergencyFlush()
+            logger.log("CrashProtection: flushed WebView recycler pool", category: .system, level: .warning)
+        }
 
         if let limits = tier.screenshotCacheLimits {
             ScreenshotCacheService.shared.setMaxCacheCounts(memory: limits.memory, disk: limits.disk)
