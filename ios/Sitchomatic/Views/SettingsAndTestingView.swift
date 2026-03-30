@@ -20,6 +20,17 @@ struct SettingsAndTestingView: View {
     private var testingToolsSection: some View {
         Section {
             NavigationLink {
+                LiveBatchDashboardView()
+            } label: {
+                settingsRow(
+                    icon: "gauge.with.dots.needle.50percent",
+                    title: "Live Batch Dashboard",
+                    subtitle: "Real-time WebView, throughput & AI monitoring",
+                    color: .teal
+                )
+            }
+
+            NavigationLink {
                 SuperTestView()
             } label: {
                 settingsRow(

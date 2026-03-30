@@ -311,6 +311,12 @@ struct SitchomaticApp: App {
             .preferredColorScheme(.dark)
         case .testDebug:
             TestDebugContainerView()
+        case .liveBatchDashboard:
+            NavigationStack {
+                LiveBatchDashboardView()
+            }
+            .withMainMenuButton()
+            .preferredColorScheme(.dark)
         default:
             EmptyView()
         }
