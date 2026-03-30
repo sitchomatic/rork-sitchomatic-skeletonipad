@@ -4,7 +4,7 @@ import Vision
 
 @MainActor
 class HostFingerprintLearningService {
-    static let shared = HostFingerprintLearningService()
+    nonisolated(unsafe) static let shared = HostFingerprintLearningService()
 
     private let logger = DebugLogger.shared
     private let persistKey = "host_fingerprint_learning_v1"

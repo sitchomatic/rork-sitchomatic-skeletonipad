@@ -3,7 +3,7 @@ import UIKit
 
 @MainActor
 class ScreenshotCacheService {
-    static let shared = ScreenshotCacheService()
+    nonisolated(unsafe) static let shared = ScreenshotCacheService()
 
     private let cacheDirectory: URL
     private(set) var maxMemoryCacheCount: Int = 300

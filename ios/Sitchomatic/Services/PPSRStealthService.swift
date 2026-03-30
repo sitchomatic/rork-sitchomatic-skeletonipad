@@ -3,7 +3,7 @@ import WebKit
 
 @MainActor
 class PPSRStealthService {
-    static let shared = PPSRStealthService()
+    nonisolated(unsafe) static let shared = PPSRStealthService()
 
     private var profileIndex: Int = 0
 

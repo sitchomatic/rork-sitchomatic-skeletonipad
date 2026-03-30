@@ -3,6 +3,7 @@ import Observation
 import UIKit
 
 @Observable
+@MainActor
 class PPSRCheck: Identifiable {
     let id: UUID
     let vin: String

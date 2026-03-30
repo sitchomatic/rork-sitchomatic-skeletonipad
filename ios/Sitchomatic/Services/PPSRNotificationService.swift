@@ -3,7 +3,7 @@ import UserNotifications
 
 @MainActor
 class PPSRNotificationService {
-    static let shared = PPSRNotificationService()
+    nonisolated(unsafe) static let shared = PPSRNotificationService()
 
     private var isAuthorized: Bool = false
 

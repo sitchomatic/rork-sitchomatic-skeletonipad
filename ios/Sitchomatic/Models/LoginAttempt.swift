@@ -3,6 +3,7 @@ import Observation
 import UIKit
 
 @Observable
+@MainActor
 class LoginAttempt: Identifiable {
     let id: UUID
     let credential: LoginCredential

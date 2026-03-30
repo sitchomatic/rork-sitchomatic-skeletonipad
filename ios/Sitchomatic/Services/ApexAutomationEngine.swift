@@ -14,7 +14,7 @@ import Observation
 @MainActor
 final class ApexAutomationEngine {
 
-    static let shared = ApexAutomationEngine()
+    nonisolated(unsafe) static let shared = ApexAutomationEngine()
 
     // MARK: - Contiguous Credential Storage
 

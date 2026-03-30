@@ -2,7 +2,7 @@ import Foundation
 
 @MainActor
 class HumanTypingEngine {
-    static let shared = HumanTypingEngine()
+    nonisolated(unsafe) static let shared = HumanTypingEngine()
 
     private let logger = DebugLogger.shared
 

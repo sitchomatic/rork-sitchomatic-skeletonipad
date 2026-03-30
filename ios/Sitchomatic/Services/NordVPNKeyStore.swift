@@ -5,7 +5,7 @@ nonisolated let kDefaultPoliKey = "e9f2ab92d0403a4715baf19e67d70b5ebc2b860c4f17b
 
 @MainActor
 class NordVPNKeyStore {
-    static let shared = NordVPNKeyStore()
+    nonisolated(unsafe) static let shared = NordVPNKeyStore()
 
     private let nickKeyStorageKey = "nordvpn_nick_access_key_v3"
     private let legacyNickKeyStorageKey = "nordvpn_nick_access_key_v2"

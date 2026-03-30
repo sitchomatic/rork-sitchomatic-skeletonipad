@@ -29,7 +29,7 @@ nonisolated struct AutomationTaskResult: Sendable {
 
 @MainActor
 class AutomationActor {
-    static let shared = AutomationActor()
+    nonisolated(unsafe) static let shared = AutomationActor()
 
     private let logger = DebugLogger.shared
     private let visionML = VisionMLService.shared

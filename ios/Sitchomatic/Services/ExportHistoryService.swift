@@ -2,7 +2,7 @@ import Foundation
 
 @MainActor
 class ExportHistoryService {
-    static let shared = ExportHistoryService()
+    nonisolated(unsafe) static let shared = ExportHistoryService()
 
     private let storageKey = "export_history_v1"
     private(set) var records: [ExportRecord] = []

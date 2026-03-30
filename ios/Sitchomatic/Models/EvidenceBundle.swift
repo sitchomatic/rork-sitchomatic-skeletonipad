@@ -3,6 +3,7 @@ import UIKit
 import Observation
 
 @Observable
+@MainActor
 class EvidenceBundle: Identifiable {
     let id: UUID
     let credentialId: String

@@ -177,7 +177,7 @@ nonisolated struct SuperTestReport: Sendable {
 @Observable
 @MainActor
 class SuperTestService {
-    static let shared = SuperTestService()
+    nonisolated(unsafe) static let shared = SuperTestService()
     private let logger = DebugLogger.shared
 
     var isRunning: Bool = false

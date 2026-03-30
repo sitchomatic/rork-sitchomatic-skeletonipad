@@ -40,7 +40,7 @@ nonisolated struct DiagnosticReport: Sendable {
 
 @MainActor
 class PPSRConnectionDiagnosticService {
-    static let shared = PPSRConnectionDiagnosticService()
+    nonisolated(unsafe) static let shared = PPSRConnectionDiagnosticService()
 
     private let targetHost = "transact.ppsr.gov.au"
     private let targetURL = URL(string: "https://transact.ppsr.gov.au/CarCheck/")!

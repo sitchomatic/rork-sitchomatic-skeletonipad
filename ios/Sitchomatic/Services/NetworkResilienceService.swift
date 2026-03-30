@@ -5,7 +5,7 @@ import Observation
 @Observable
 @MainActor
 class NetworkResilienceService {
-    static let shared = NetworkResilienceService()
+    nonisolated(unsafe) static let shared = NetworkResilienceService()
 
     private(set) var failClosedVerificationActive: Bool = false
     private(set) var lastVerificationResult: VerificationResult?

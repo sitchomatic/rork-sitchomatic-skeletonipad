@@ -6,7 +6,7 @@ import SwiftUI
 @Observable
 @MainActor
 class UnifiedScreenshotManager {
-    static let shared = UnifiedScreenshotManager()
+    nonisolated(unsafe) static let shared = UnifiedScreenshotManager()
 
     var screenshots: [UnifiedScreenshot] = []
     var analysisStats: AnalysisStats = AnalysisStats()

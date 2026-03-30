@@ -4,7 +4,7 @@ import Observation
 @Observable
 @MainActor
 class NoticesService {
-    static let shared = NoticesService()
+    nonisolated(unsafe) static let shared = NoticesService()
 
     var notices: [FailureNotice] = []
 

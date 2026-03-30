@@ -3,7 +3,7 @@ import UIKit
 
 @MainActor
 final class CrashProtectionService {
-    static let shared = CrashProtectionService()
+    nonisolated(unsafe) static let shared = CrashProtectionService()
 
     private let logger = DebugLogger.shared
     private let memoryMonitor = MemoryMonitor()
