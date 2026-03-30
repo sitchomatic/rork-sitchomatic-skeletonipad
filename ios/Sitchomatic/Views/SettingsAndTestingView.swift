@@ -62,10 +62,76 @@ struct SettingsAndTestingView: View {
                     color: .indigo
                 )
             }
+
+            NavigationLink {
+                BatchIntelligenceView()
+            } label: {
+                settingsRow(
+                    icon: "chart.line.uptrend.xyaxis",
+                    title: "Batch Intelligence",
+                    subtitle: "AI pre-optimizer, credential triage & domain intel",
+                    color: .blue
+                )
+            }
+
+            NavigationLink {
+                WebViewMemoryProfilerView()
+            } label: {
+                settingsRow(
+                    icon: "chart.xyaxis.line",
+                    title: "WebView Memory Profiler",
+                    subtitle: "Per-webview memory & eviction recommendations",
+                    color: .orange
+                )
+            }
+
+            NavigationLink {
+                BatchTelemetryDashboardView()
+            } label: {
+                settingsRow(
+                    icon: "chart.bar.xaxis",
+                    title: "Batch Telemetry",
+                    subtitle: "Historical batch analytics & performance metrics",
+                    color: .green
+                )
+            }
+
+            NavigationLink {
+                PerformanceMonitorView()
+            } label: {
+                settingsRow(
+                    icon: "speedometer",
+                    title: "Performance Monitor",
+                    subtitle: "OS signpost, task tracking & memory instrumentation",
+                    color: .red
+                )
+            }
+
+            NavigationLink {
+                AdaptiveConcurrencyDashboardView()
+            } label: {
+                settingsRow(
+                    icon: "gauge.with.dots.needle.bottom.100percent",
+                    title: "Adaptive Concurrency",
+                    subtitle: "Real-time concurrency optimization & health monitoring",
+                    color: .purple
+                )
+            }
+
+            NavigationLink {
+                StressTestDashboardView()
+            } label: {
+                settingsRow(
+                    icon: "speedometer",
+                    title: "Stress Test",
+                    subtitle: "System stress testing & threshold calibration",
+                    color: .red
+                )
+            }
         } header: {
             Label("Testing Tools", systemImage: "flask.fill")
         } footer: {
-            Text("Run full infrastructure tests and IP quality checks.")
+            Text("Run full infrastructure tests, IP quality checks, and performance analysis.")
         }
     }
 
