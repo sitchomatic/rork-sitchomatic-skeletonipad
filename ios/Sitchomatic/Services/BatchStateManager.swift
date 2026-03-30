@@ -48,9 +48,13 @@ final class BatchStateManager {
     private var heartbeatTask: Task<Void, Never>?
     private let logger = DebugLogger.shared
 
-    private let forceStopDelaySeconds: TimeInterval = 30
+    private var forceStopDelaySeconds: TimeInterval {
+        DeviceCapability.isM5Class ? 45 : (DeviceCapability.isHighPerformanceDevice ? 30 : 20)
+    }
     private let pauseDurationSeconds: Int = 60
-    private let heartbeatIntervalSeconds: TimeInterval = 15
+    private var heartbeatIntervalSeconds: TimeInterval {
+        DeviceCapability.isM5Class ? 10 : 15
+    }
 
     private init() {}
 

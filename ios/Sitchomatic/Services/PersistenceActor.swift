@@ -19,7 +19,7 @@ actor PersistenceActor {
 
     private var pendingWrites: [String: Data] = [:]
     private var coalescingTask: Task<Void, Never>?
-    private let coalescingDelayMs: UInt64 = 500
+    private let coalescingDelayMilliseconds: UInt64 = 500
     private var writeCount: Int = 0
     private var readCount: Int = 0
 
@@ -134,7 +134,7 @@ actor PersistenceActor {
     private func scheduleCoalescedFlush() {
         coalescingTask?.cancel()
         coalescingTask = Task {
-            try? await Task.sleep(nanoseconds: coalescingDelayMs * 1_000_000)
+            try? await Task.sleep(nanoseconds: coalescingDelayMilliseconds * 1_000_000)
             guard !Task.isCancelled else { return }
             await self.flushPendingWrites()
         }
