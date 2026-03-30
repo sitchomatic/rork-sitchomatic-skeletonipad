@@ -423,7 +423,6 @@ class AdaptiveConcurrencyEngine {
         guard let jsonData = try? JSONSerialization.data(withJSONObject: context),
               let jsonStr = String(data: jsonData, encoding: .utf8) else { return }
 
-        let criticalMB = memoryCriticalThreshold
         let systemPrompt = """
         You manage adaptive concurrency for a dual-site login testing system on iOS. \
         Concurrency is measured in PAIRS (1 pair = 1 Joe + 1 Ignition webview). \
@@ -434,7 +433,7 @@ class AdaptiveConcurrencyEngine {
         2. Only increase by 1 pair at a time when conditions are stable for 30+ seconds. \
         3. Decrease aggressively (can drop by 2+ pairs) if problems detected. \
         4. If app is in background, prefer lower pairs (max 2). \
-        5. Memory above \(criticalMB)MB = max 4 pairs. Death spiral = force 1 pair. \
+        5. Memory above \(memoryCriticalThreshold)MB = max 4 pairs. Death spiral = force 1 pair. \
         6. High timeout or connection failure rates = reduce immediately. \
         7. Prioritize app stability over throughput. \
         Return ONLY JSON: {"pairs":N,"reasoning":"brief explanation"}
