@@ -142,6 +142,9 @@ struct SitchomaticApp: App {
             .overlay(alignment: .topTrailing) {
                 RunCommandPillView()
             }
+            .overlay(alignment: .bottom) {
+                FloatingBatchControlBar()
+            }
             .animation(.spring(duration: 0.35, bounce: 0.15), value: activeModeRaw)
             .onChange(of: activeModeRaw) { _, newValue in
                 if let mode = ActiveAppMode(rawValue: newValue) {
