@@ -85,6 +85,12 @@ class AdaptiveConcurrencyEngine {
     private let crashProtection = CrashProtectionService.shared
     private let toolkit = RorkToolkitService.shared
 
+    // Dynamic memory thresholds from DeviceCapability (replaces hardcoded values)
+    private let memoryEmergencyThreshold = DeviceCapability.performanceProfile.memoryThresholdEmergencyMB
+    private let memoryCriticalThreshold = DeviceCapability.performanceProfile.memoryThresholdCriticalMB
+    private let memoryHighThreshold = DeviceCapability.performanceProfile.memoryThresholdHighMB
+    private let memorySoftThreshold = DeviceCapability.performanceProfile.memoryThresholdSoftMB
+
     private var monitorTask: Task<Void, Never>?
     private var aiAnalysisTask: Task<Void, Never>?
 
@@ -301,7 +307,7 @@ class AdaptiveConcurrencyEngine {
         )
         recordHistoryPoint()
 
-        if isDeathSpiral || memMB > 8000 {
+        if isDeathSpiral || memMB > memoryEmergencyThreshold {
             if livePairCount > 1 {
                 if preEmergencyPairCount == nil { preEmergencyPairCount = livePairCount }
                 applyDecision(newConcurrency: 1, reasoning: "EMERGENCY: Memory death spiral (\(memMB)MB) — dropping to 1 pair", wasAI: false)
@@ -310,7 +316,7 @@ class AdaptiveConcurrencyEngine {
         }
 
         if activeStrategy == .fullSend {
-            if let preCrash = preEmergencyPairCount, memMB < 5000, !isDeathSpiral {
+            if let preCrash = preEmergencyPairCount, memMB < memoryCriticalThreshold, !isDeathSpiral {
                 preEmergencyPairCount = nil
                 applyDecision(newConcurrency: preCrash, reasoning: "Full send: recovered from emergency — restoring \(preCrash) pairs", wasAI: false)
             } else if preEmergencyPairCount == nil && livePairCount < maxCap {
@@ -320,17 +326,17 @@ class AdaptiveConcurrencyEngine {
         }
 
         if activeStrategy == .fixedPairs || activeStrategy == .liveUserAdjustable {
-            if memMB > 5000 && livePairCount > 4 {
+            if memMB > memoryCriticalThreshold && livePairCount > 4 {
                 if preEmergencyPairCount == nil { preEmergencyPairCount = livePairCount }
                 applyDecision(newConcurrency: 4, reasoning: "High memory (\(memMB)MB) — temporary cap at 4 pairs", wasAI: false)
-            } else if let preCrash = preEmergencyPairCount, memMB < 3500 {
+            } else if let preCrash = preEmergencyPairCount, memMB < memoryHighThreshold {
                 preEmergencyPairCount = nil
                 applyDecision(newConcurrency: preCrash, reasoning: "Memory recovered — restoring \(preCrash) pairs", wasAI: false)
             }
             return
         }
 
-        if memMB > 5000 && livePairCount > 4 {
+        if memMB > memoryCriticalThreshold && livePairCount > 4 {
             applyDecision(newConcurrency: 4, reasoning: "High memory (\(memMB)MB) — capping at 4 pairs", wasAI: false)
             return
         }
@@ -356,7 +362,7 @@ class AdaptiveConcurrencyEngine {
             && Date().timeIntervalSince(lastRampUpTime) >= rampUpCooldownSeconds
             && stability > 0.65
             && !isBackground
-            && memMB < 3500
+            && memMB < memoryHighThreshold
             && timeoutRate < 0.1
             && connectionFailureRate < 0.1
 
@@ -427,7 +433,7 @@ class AdaptiveConcurrencyEngine {
         2. Only increase by 1 pair at a time when conditions are stable for 30+ seconds. \
         3. Decrease aggressively (can drop by 2+ pairs) if problems detected. \
         4. If app is in background, prefer lower pairs (max 2). \
-        5. Memory above 5000MB = max 4 pairs. Death spiral = force 1 pair. \
+        5. Memory above \(memoryCriticalThreshold)MB = max 4 pairs. Death spiral = force 1 pair. \
         6. High timeout or connection failure rates = reduce immediately. \
         7. Prioritize app stability over throughput. \
         Return ONLY JSON: {"pairs":N,"reasoning":"brief explanation"}
@@ -535,8 +541,8 @@ class AdaptiveConcurrencyEngine {
     }
 
     private func computeMemoryLevel(memMB: Int, isDeathSpiral: Bool, growthRate: Double) -> ConcurrencyFactorLevel {
-        if isDeathSpiral || memMB > 5000 { return .critical }
-        if memMB > 3000 || growthRate > 20 { return .warning }
+        if isDeathSpiral || memMB > memoryCriticalThreshold { return .critical }
+        if memMB > memoryHighThreshold || growthRate > 20 { return .warning }
         return .good
     }
 
@@ -556,9 +562,9 @@ class AdaptiveConcurrencyEngine {
         var score = 1.0
 
         if isDeathSpiral { score -= 0.5 }
-        else if memMB > 5000 { score -= 0.3 }
-        else if memMB > 3000 { score -= 0.15 }
-        else if memMB > 1600 { score -= 0.05 }
+        else if memMB > memoryCriticalThreshold { score -= 0.3 }
+        else if memMB > memoryHighThreshold { score -= 0.15 }
+        else if memMB > memorySoftThreshold { score -= 0.05 }
 
         if growthRate > 30 { score -= 0.2 }
         else if growthRate > 15 { score -= 0.1 }
