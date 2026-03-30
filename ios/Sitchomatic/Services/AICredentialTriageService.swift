@@ -250,7 +250,14 @@ class AICredentialTriageService {
         and any patterns that suggest credential quality issues.
         """
 
-        guard let response = await RorkToolkitService.shared.generateText(systemPrompt: systemPrompt, userPrompt: "Credential triage data:\n\(jsonStr)") else {
+        guard let response = await AIAnalysisEngine.shared.analyze(
+            systemPrompt: systemPrompt,
+            userPrompt: "Credential triage data:\n\(jsonStr)",
+            priority: .background,
+            model: .standard,
+            jsonMode: false,
+            enableCache: true
+        ) else {
             return []
         }
 

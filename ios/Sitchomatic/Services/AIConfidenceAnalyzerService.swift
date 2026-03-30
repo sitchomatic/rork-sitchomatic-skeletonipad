@@ -96,7 +96,14 @@ class AIConfidenceAnalyzerService {
         store.aiCallCount += 1
         save()
 
-        guard let response = await RorkToolkitService.shared.generateText(systemPrompt: systemPrompt, userPrompt: userPrompt) else {
+        guard let response = await AIAnalysisEngine.shared.analyze(
+            systemPrompt: systemPrompt,
+            userPrompt: userPrompt,
+            priority: .normal,
+            model: .standard,
+            jsonMode: false,
+            enableCache: true
+        ) else {
             logger.log("AIConfidence: AI call failed for \(host)", category: .evaluation, level: .warning)
             return nil
         }
