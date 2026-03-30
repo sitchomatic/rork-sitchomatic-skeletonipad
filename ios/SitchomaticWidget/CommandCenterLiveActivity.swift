@@ -63,9 +63,9 @@ struct CommandCenterLiveActivity: Widget {
                 Spacer()
                 statPill(value: "\(state.failedCount)", label: "FAIL", color: .red)
                 Spacer()
-                statPill(value: formatElapsed(state.elapsedSeconds), label: "TIME", color: .white.opacity(0.7))
+                statPill(value: String(format: "%.1f", state.throughputPerMinute), label: "/MIN", color: .cyan)
                 Spacer()
-                statPill(value: "\(Int(state.successRate * 100))%", label: "RATE", color: rateColor(state.successRate))
+                statPill(value: state.eta, label: "ETA", color: .orange)
             }
         }
         .padding(14)
@@ -103,9 +103,9 @@ struct CommandCenterLiveActivity: Widget {
                     .font(.system(size: 16, weight: .heavy, design: .monospaced))
                     .foregroundStyle(.white)
                 Spacer()
-                Text(formatElapsed(state.elapsedSeconds))
+                Text("ETA \(state.eta)")
                     .font(.system(size: 12, weight: .bold, design: .monospaced))
-                    .foregroundStyle(.white.opacity(0.6))
+                    .foregroundStyle(.orange.opacity(0.8))
             }
             ProgressView(value: progress)
                 .tint(siteColor(context.attributes.siteMode))
@@ -118,7 +118,8 @@ struct CommandCenterLiveActivity: Widget {
         HStack(spacing: 12) {
             expandedStat(icon: "checkmark.circle.fill", value: "\(state.workingCount)", color: .green)
             expandedStat(icon: "xmark.circle.fill", value: "\(state.failedCount)", color: .red)
-            expandedStat(icon: "chart.line.uptrend.xyaxis", value: "\(Int(state.successRate * 100))%", color: rateColor(state.successRate))
+            expandedStat(icon: "person.2.fill", value: "\(state.pairCount)", color: .cyan)
+            expandedStat(icon: "gauge.high", value: String(format: "%.1f/m", state.throughputPerMinute), color: .white.opacity(0.7))
         }
     }
 
@@ -136,7 +137,7 @@ struct CommandCenterLiveActivity: Widget {
 
     @ViewBuilder
     private func compactTrailing(context: ActivityViewContext<CommandCenterActivityAttributes>) -> some View {
-        Text("\(context.state.completedCount)/\(context.state.totalCount)")
+        Text("\(context.state.pairCount)")
             .font(.system(size: 12, weight: .heavy, design: .monospaced))
             .foregroundStyle(.white)
     }
@@ -228,17 +229,5 @@ struct CommandCenterLiveActivity: Widget {
         case "double": .cyan
         default: .secondary
         }
-    }
-
-    private func rateColor(_ rate: Double) -> Color {
-        if rate >= 0.5 { return .green }
-        if rate >= 0.2 { return .yellow }
-        return .red
-    }
-
-    private func formatElapsed(_ seconds: Int) -> String {
-        let mins = seconds / 60
-        let secs = seconds % 60
-        return String(format: "%d:%02d", mins, secs)
     }
 }

@@ -41,6 +41,114 @@ enum ProxyProtocol: String, Sendable {
     case openVPN = "OpenVPN"
     case nodeMaven = "NodeMaven"
     case direct = "Direct"
+    case dns = "DNS"
+    case hybrid = "Hybrid"
+
+    var icon: String {
+        switch self {
+        case .socks5: "network"
+        case .wireGuard: "lock.trianglebadge.exclamationmark.fill"
+        case .openVPN: "shield.lefthalf.filled"
+        case .nodeMaven: "globe"
+        case .direct: "bolt.horizontal.fill"
+        case .dns: "lock.shield.fill"
+        case .hybrid: "arrow.triangle.branch"
+        }
+    }
+
+    var toConnectionMode: ConnectionMode {
+        switch self {
+        case .socks5: .proxy
+        case .wireGuard: .wireguard
+        case .openVPN: .openvpn
+        case .nodeMaven: .nodeMaven
+        case .direct: .direct
+        case .dns: .dns
+        case .hybrid: .hybrid
+        }
+    }
+}
+
+// MARK: - Orchestrator Connection State
+
+nonisolated enum OrchestratorConnectionState: Sendable {
+    case disconnected
+    case connecting
+    case connected
+    case reconnecting
+    case failed(NetworkFailure)
+
+    var label: String {
+        switch self {
+        case .disconnected: "Disconnected"
+        case .connecting: "Connecting"
+        case .connected: "Connected"
+        case .reconnecting: "Reconnecting"
+        case .failed(let failure): "Failed: \(failure.localizedDescription)"
+        }
+    }
+
+    var isActive: Bool {
+        switch self {
+        case .connected, .reconnecting: true
+        default: false
+        }
+    }
+}
+
+// MARK: - Connection Metrics
+
+nonisolated struct ConnectionMetrics: Sendable {
+    var latencyMs: Int = 0
+    var bytesUp: UInt64 = 0
+    var bytesDown: UInt64 = 0
+    var uptimeSeconds: TimeInterval = 0
+    var failureCount: Int = 0
+    var successCount: Int = 0
+
+    var totalBytes: UInt64 { bytesUp + bytesDown }
+
+    var successRate: Double {
+        let total = failureCount + successCount
+        guard total > 0 else { return 0 }
+        return Double(successCount) / Double(total)
+    }
+
+    var formattedUptime: String {
+        let hours = Int(uptimeSeconds) / 3600
+        let minutes = (Int(uptimeSeconds) % 3600) / 60
+        let seconds = Int(uptimeSeconds) % 60
+        if hours > 0 { return "\(hours)h \(minutes)m" }
+        if minutes > 0 { return "\(minutes)m \(seconds)s" }
+        return "\(seconds)s"
+    }
+}
+
+// MARK: - Connection Log Entry
+
+nonisolated struct ConnectionLogEntry: Identifiable, Sendable {
+    let id = UUID()
+    let timestamp: Date
+    let protocol_: ProxyProtocol
+    let event: String
+    let detail: String?
+    let success: Bool
+
+    init(protocol_: ProxyProtocol, event: String, detail: String? = nil, success: Bool = true) {
+        self.timestamp = Date()
+        self.protocol_ = protocol_
+        self.event = event
+        self.detail = detail
+        self.success = success
+    }
+}
+
+// MARK: - DNS Cache Entry
+
+private nonisolated struct DNSCacheEntry: Sendable {
+    let resolvedIP: String
+    let expiry: Date
+    var isExpired: Bool { Date() > expiry }
 }
 
 nonisolated struct ProxyConfig: Sendable, Hashable {
@@ -351,13 +459,12 @@ final class ProxyOrchestrator {
     private func testProxyConnection(_ proxy: ProxyConfig) async {
         let start = Date()
 
-        // Simplified health check - actual implementation would test real connectivity
-        let success = Bool.random() // Placeholder - replace with actual health check
-        let latencyMs = Int.random(in: 50...200)
+        // Delegate to existing health monitor for connectivity status
+        let healthMonitor = ProxyHealthMonitor.shared
+        let success = healthMonitor.upstreamHealth.isHealthy
+        let latencyMs = healthMonitor.upstreamHealth.latencyMs ?? Int(Date().timeIntervalSince(start) * 1000)
 
-        let duration = Date().timeIntervalSince(start)
-
-        recordConnectionResult(proxyId: proxy.id, success: success, latencyMs: latencyMs)
+        recordConnectionResult(proxyId: proxy.id, success: success, latencyMs: max(latencyMs, 1))
 
         if !success {
             logger.log("ProxyOrchestrator: health check FAILED for \(proxy.displayName)", category: .networking, level: .warning)

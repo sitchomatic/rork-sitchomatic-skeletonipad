@@ -185,7 +185,7 @@ struct StatBox: View {
     var body: some View {
         VStack(spacing: 4) {
             Text(value)
-                .font(.system(size: 20, weight: .bold, design: .rounded))
+                .font(.system(size: 18, weight: .bold, design: .rounded))
             Text(title)
                 .font(.caption2)
                 .foregroundStyle(.secondary)
@@ -194,7 +194,7 @@ struct StatBox: View {
     }
 }
 
-// MARK: - Widget Configuration
+// MARK: - Widget
 
 struct SitchomaticWidget: Widget {
     let kind: String = "SitchomaticWidget"
