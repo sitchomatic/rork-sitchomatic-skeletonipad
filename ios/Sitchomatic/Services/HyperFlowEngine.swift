@@ -458,14 +458,14 @@ public final class HeadlessWebViewWorker: NSObject, WKNavigationDelegate, WKScri
 
 // MARK: - 7. Automation Orchestrator
 
-/// Manages up to 20 concurrent pairs (40 webviews total).
-/// Orchestrates PairedTasks across the engine.
+/// Manages up to 40 concurrent pairs (80 webviews total).
+/// Orchestrates PairedTasks across the engine with WebViewRecycler integration.
 @MainActor
 public final class AutomationOrchestrator {
     public static let shared = AutomationOrchestrator()
 
     private let logger = Logger(subsystem: "com.hyperflow.scraper", category: "Orchestrator")
-    private let maxConcurrentPairs = 40
+    private let maxConcurrentPairs = DeviceCapability.performanceProfile.maxConcurrentPairs
     private(set) var activePairCount = 0
     private(set) var completedPairs = 0
     private(set) var failedPairs = 0
@@ -476,6 +476,9 @@ public final class AutomationOrchestrator {
 
     public func runPairedTasks(_ tasks: [PairedTask], allowedDomains: Set<String> = []) async {
         logger.info("Orchestrator: launching \(tasks.count) paired tasks (max \(self.maxConcurrentPairs) concurrent)")
+
+        // Pre-warm the recycler before batch execution
+        WebViewRecycler.shared.prewarm()
 
         // Process tasks in batches of maxConcurrentPairs
         for batchStart in stride(from: 0, to: tasks.count, by: maxConcurrentPairs) {
@@ -515,6 +518,13 @@ public final class AutomationOrchestrator {
         }
 
         logger.info("Orchestrator: complete — \(self.completedPairs) succeeded, \(self.failedPairs) failed")
+    }
+
+    /// Emergency stop — flush all recycled views to free memory immediately.
+    public func emergencyStop() {
+        WebViewRecycler.shared.emergencyFlush()
+        WebViewPool.shared.reset()
+        logger.warning("Orchestrator: emergency stop — recycler flushed, pool reset")
     }
 
     public func reset() {

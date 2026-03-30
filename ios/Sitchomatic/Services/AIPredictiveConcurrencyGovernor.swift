@@ -55,10 +55,10 @@ class AIPredictiveConcurrencyGovernor {
     private(set) var currentStabilityScore: Double = 1.0
     private(set) var lastSnapshot: GovernorSnapshot?
 
-    private let memoryLowThreshold = 800
-    private let memoryMedThreshold = 1400
-    private let memoryHighThreshold = 2000
-    private let memoryEmergencyThreshold = 3000
+    private let memoryLowThreshold: Int
+    private let memoryMedThreshold: Int
+    private let memoryHighThreshold: Int
+    private let memoryEmergencyThreshold: Int
 
     private let rampUpCooldownSeconds: TimeInterval = 30
     private var lastRampUpTime: Date = .distantPast
@@ -68,6 +68,13 @@ class AIPredictiveConcurrencyGovernor {
     var onConcurrencyChanged: (@Sendable (Int, String) -> Void)?
 
     init() {
+        // Wire thresholds from DeviceCapability dynamic profile
+        let profile = DeviceCapability.performanceProfile
+        self.memoryLowThreshold = profile.memoryThresholdSoftMB
+        self.memoryMedThreshold = profile.memoryThresholdHighMB
+        self.memoryHighThreshold = profile.memoryThresholdCriticalMB
+        self.memoryEmergencyThreshold = profile.memoryThresholdEmergencyMB
+
         if let data = UserDefaults.standard.data(forKey: persistKey),
            let decoded = try? JSONDecoder().decode(GovernorStore.self, from: data) {
             self.store = decoded
@@ -229,7 +236,7 @@ class AIPredictiveConcurrencyGovernor {
             }
         }
 
-        finalConcurrency = max(1, min(10, finalConcurrency))
+        finalConcurrency = max(1, min(DeviceCapability.performanceProfile.maxConcurrentPairs, finalConcurrency))
 
         if finalConcurrency != currentRecommendedConcurrency {
             let old = currentRecommendedConcurrency
