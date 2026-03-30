@@ -31,6 +31,17 @@ struct SettingsAndTestingView: View {
             }
 
             NavigationLink {
+                SessionMonitorSplitView()
+            } label: {
+                settingsRow(
+                    icon: "rectangle.split.2x1",
+                    title: "Session Monitor",
+                    subtitle: "Live screenshot + log stream split view",
+                    color: .purple
+                )
+            }
+
+            NavigationLink {
                 SuperTestView()
             } label: {
                 settingsRow(

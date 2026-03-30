@@ -320,6 +320,10 @@ struct SitchomaticApp: App {
             }
             .withMainMenuButton()
             .preferredColorScheme(.dark)
+        case .sessionMonitor:
+            SessionMonitorSplitView()
+                .withMainMenuButton()
+                .preferredColorScheme(.dark)
         default:
             EmptyView()
         }

@@ -577,4 +577,5 @@ nonisolated enum ActiveAppMode: String, Sendable {
     case proxyManager
     case testDebug
     case liveBatchDashboard
+    case sessionMonitor
 }
