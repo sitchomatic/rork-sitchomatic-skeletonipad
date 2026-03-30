@@ -26,6 +26,7 @@ struct DeviceNetworkSettingsView: View {
                 unitedIPOptionsSection
             }
             proxyManagerLinkSection
+            vpnStatusSection
             if isTunnelRelevantMode {
                 tunnelServerSection
             }
@@ -659,6 +660,49 @@ struct DeviceNetworkSettingsView: View {
     }
 
     // MARK: - Ignition Region
+
+    private var vpnStatusSection: some View {
+        Section {
+            NavigationLink {
+                VPNStatusDashboardView()
+            } label: {
+                HStack(spacing: 12) {
+                    ZStack {
+                        Circle()
+                            .fill(vpnTunnelColor.opacity(0.12))
+                            .frame(width: 40, height: 40)
+                        Image(systemName: "lock.shield.fill")
+                            .font(.body)
+                            .foregroundStyle(vpnTunnelColor)
+                    }
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("VPN Status Dashboard").font(.subheadline.bold())
+                        Text("Tunnel status, stats, endpoints & history")
+                            .font(.caption2).foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Text(VPNTunnelManager.shared.status.rawValue.uppercased())
+                        .font(.system(.caption2, design: .monospaced, weight: .bold))
+                        .foregroundStyle(vpnTunnelColor)
+                        .padding(.horizontal, 6).padding(.vertical, 3)
+                        .background(vpnTunnelColor.opacity(0.12)).clipShape(Capsule())
+                }
+            }
+        } header: {
+            Label("VPN Tunnel", systemImage: "lock.shield.fill")
+        } footer: {
+            Text("Monitor VPN tunnel connections, test endpoints, and view history.")
+        }
+    }
+
+    private var vpnTunnelColor: Color {
+        switch VPNTunnelManager.shared.status {
+        case .connected: .green
+        case .connecting, .reasserting, .configuring: .orange
+        case .disconnected, .disconnecting: .secondary
+        case .error, .invalid: .red
+        }
+    }
 
     private var ignitionRegionSection: some View {
         Section {

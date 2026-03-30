@@ -460,6 +460,21 @@ struct PPSRSettingsView: View {
                 }
             }
             NavigationLink {
+                PPSRConsoleView(vm: vm)
+            } label: {
+                HStack(spacing: 10) {
+                    Image(systemName: "terminal.fill").foregroundStyle(.green)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Live Console").font(.body)
+                        Text("Real-time automation log output").font(.caption2).foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Text("\(vm.globalLogs.count)")
+                        .font(.system(.caption, design: .monospaced, weight: .bold))
+                        .foregroundStyle(.secondary)
+                }
+            }
+            NavigationLink {
                 DebugLogView()
             } label: {
                 HStack(spacing: 10) {

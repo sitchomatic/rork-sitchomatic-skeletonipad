@@ -128,6 +128,17 @@ struct SettingsAndTestingView: View {
                     color: .red
                 )
             }
+
+            NavigationLink {
+                ServiceStatusDashboardView()
+            } label: {
+                settingsRow(
+                    icon: "waveform.path.ecg.rectangle",
+                    title: "Service Status",
+                    subtitle: "All infrastructure service health & status overview",
+                    color: .cyan
+                )
+            }
         } header: {
             Label("Testing Tools", systemImage: "flask.fill")
         } footer: {

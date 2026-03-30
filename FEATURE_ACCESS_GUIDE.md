@@ -118,6 +118,17 @@ Access via **Main Menu → Settings & Testing**
       - Memory sampling
       - Threshold calibration from historical results
 
+11. **Service Status** ✨ *New*
+    - All infrastructure service health & status overview
+    - Icon: waveform.path.ecg.rectangle
+    - Color: Cyan
+    - Features:
+      - Core Systems: Batch State Manager, Crash Protection, App Stability
+      - AI Services: AI Analysis Engine, On-Device Intelligence
+      - Network & Proxy: Proxy Orchestrator, Health Monitor, Network Resilience
+      - WebView Infrastructure: Recycler, Process Pool, Concurrency Governor
+      - Telemetry & Persistence: Batch Telemetry records
+
 ### Network & VPN Section
 
 1. **Device Network Settings**
@@ -125,7 +136,7 @@ Access via **Main Menu → Settings & Testing**
    - Shows current connection mode badge
    - Access to:
      - Proxy Status Dashboard
-     - VPN Status Dashboard
+     - **VPN Status Dashboard** ✨ *Now Accessible*
      - WireProxy Dashboard (when applicable)
 
 2. **Nord Config**
@@ -175,6 +186,7 @@ Access via **Main Menu → Settings & Testing**
 ### From PPSR Mode:
 - **PPSR Settings**: Configuration and management
 - **BPoint Pool Management**: Biller pool configuration
+- **Live Console** ✨ *Now Accessible*: Real-time automation log output (via Debug section)
 
 ### From Main Modes:
 - **Floating Batch Control Bar**: Always visible during batch runs
@@ -199,19 +211,32 @@ All major services now have UI access:
 - ✅ WebViewMemoryProfiler → WebView Memory Profiler
 - ✅ AdaptiveConcurrencyEngine → Adaptive Concurrency Dashboard
 - ✅ StressTestService → Stress Test Dashboard
-- ✅ ConcurrencyGovernorV2 → Adaptive Concurrency Dashboard
+- ✅ ConcurrencyGovernorV2 → Adaptive Concurrency Dashboard + Service Status
 - ✅ ProxyRotationService → Device Network Settings → Proxy Status Dashboard
+- ✅ VPNTunnelManager → Device Network Settings → VPN Status Dashboard ✨
 - ✅ NordVPNService → Nord Config
-- ✅ BatchStateManager → Live Batch Dashboard
+- ✅ BatchStateManager → Live Batch Dashboard + Service Status
 - ✅ CredentialGroupService → Credential Groups View (via Login Credentials List)
+- ✅ CrashProtectionService → Service Status Dashboard ✨
+- ✅ AppStabilityCoordinator → Service Status Dashboard ✨
+- ✅ WebViewRecycler → Service Status Dashboard ✨
+- ✅ WebViewProcessPoolManager → Service Status Dashboard ✨
+- ✅ ProxyOrchestrator → Service Status Dashboard ✨
+- ✅ ProxyHealthMonitor → Service Status Dashboard ✨
+- ✅ NetworkResilienceService → Service Status Dashboard ✨
+- ✅ OnDeviceIntelligenceService → Service Status Dashboard ✨
+- ✅ PPSRAutomationEngine → PPSR Console ✨
 
 ### Views Created/Made Accessible in This Update
-1. **BatchTelemetryDashboardView** - New view for batch history analytics
-2. **PerformanceMonitorView** - New view for performance instrumentation
-3. **BatchIntelligenceView** - Existing view, now accessible
-4. **WebViewMemoryProfilerView** - Existing view, now accessible
-5. **AdaptiveConcurrencyDashboardView** - Existing view, now accessible
-6. **StressTestDashboardView** - Existing view, now accessible
+1. **ServiceStatusDashboardView** ✨ - New view for infrastructure service health monitoring
+2. **PPSRConsoleView** ✨ - Existing view, now accessible via PPSR Settings → Debug
+3. **VPNStatusDashboardView** ✨ - Existing view, now accessible via Device Network Settings
+4. **BatchTelemetryDashboardView** - New view for batch history analytics
+5. **PerformanceMonitorView** - New view for performance instrumentation
+6. **BatchIntelligenceView** - Existing view, now accessible
+7. **WebViewMemoryProfilerView** - Existing view, now accessible
+8. **AdaptiveConcurrencyDashboardView** - Existing view, now accessible
+9. **StressTestDashboardView** - Existing view, now accessible
 
 ## Navigation Quick Reference
 
@@ -219,10 +244,12 @@ All major services now have UI access:
 Main Menu
 ├── Unified Sessions (JoePoint + Ignition)
 ├── PPSR Check
+│   └── Settings → Debug
+│       └── Live Console ✨
 ├── Dual Find
 ├── Test & Debug
 └── Settings & Testing
-    ├── Testing Tools (10 items)
+    ├── Testing Tools (11 items)
     │   ├── Live Batch Dashboard
     │   ├── Session Monitor
     │   ├── Super Test
@@ -232,9 +259,11 @@ Main Menu
     │   ├── Batch Telemetry ✨ NEW
     │   ├── Performance Monitor ✨ NEW
     │   ├── Adaptive Concurrency ✨
-    │   └── Stress Test ✨
+    │   ├── Stress Test ✨
+    │   └── Service Status ✨ NEW
     ├── Network & VPN (3 items)
     │   ├── Device Network Settings
+    │   │   └── VPN Status Dashboard ✨
     │   ├── Nord Config
     │   └── Repair Network
     └── Advanced (2 items)
