@@ -55,10 +55,10 @@ class AIPredictiveConcurrencyGovernor {
     private(set) var currentStabilityScore: Double = 1.0
     private(set) var lastSnapshot: GovernorSnapshot?
 
-    private let memoryLowThreshold = 800
-    private let memoryMedThreshold = 1400
-    private let memoryHighThreshold = 2000
-    private let memoryEmergencyThreshold = 3000
+    private var memoryLowThreshold: Int { DeviceCapability.performanceProfile.memoryThresholdSoftMB }
+    private var memoryMedThreshold: Int { DeviceCapability.performanceProfile.memoryThresholdHighMB }
+    private var memoryHighThreshold: Int { DeviceCapability.performanceProfile.memoryThresholdCriticalMB }
+    private var memoryEmergencyThreshold: Int { DeviceCapability.performanceProfile.memoryThresholdEmergencyMB }
 
     private let rampUpCooldownSeconds: TimeInterval = 30
     private var lastRampUpTime: Date = .distantPast

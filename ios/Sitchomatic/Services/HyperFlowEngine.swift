@@ -150,17 +150,18 @@ public actor AutomationPairSession {
     let sessionID = UUID()
     let task: PairedTask
 
-    // Crucial: A unique ProcessPool and DataStore for THIS PAIR ONLY.
-    // This provides the strict cookie/storage isolation requested.
-    let isolatedProcessPool = WKProcessPool()
+    // Shared ProcessPool via WebViewProcessPoolManager for memory efficiency.
+    // Each pair keeps its own nonPersistent DataStore for cookie/storage isolation.
+    let isolatedProcessPool: WKProcessPool
     let isolatedDataStore = WKWebsiteDataStore.nonPersistent()
 
     private let allowedDomains: Set<String>
     private let logger = Logger(subsystem: "com.hyperflow.scraper", category: "Session")
 
-    public init(task: PairedTask, allowedDomains: Set<String>) {
+    public init(task: PairedTask, allowedDomains: Set<String>, processPool: WKProcessPool) {
         self.task = task
         self.allowedDomains = allowedDomains
+        self.isolatedProcessPool = processPool
     }
 
     public func execute() async throws {
@@ -458,14 +459,14 @@ public final class HeadlessWebViewWorker: NSObject, WKNavigationDelegate, WKScri
 
 // MARK: - 7. Automation Orchestrator
 
-/// Manages up to 20 concurrent pairs (40 webviews total).
-/// Orchestrates PairedTasks across the engine.
+/// Manages up to 40 concurrent pairs (80 webviews total).
+/// Orchestrates PairedTasks across the engine with WebViewRecycler integration.
 @MainActor
 public final class AutomationOrchestrator {
     public static let shared = AutomationOrchestrator()
 
     private let logger = Logger(subsystem: "com.hyperflow.scraper", category: "Orchestrator")
-    private let maxConcurrentPairs = 40
+    private var maxConcurrentPairs: Int { DeviceCapability.performanceProfile.maxConcurrentPairs }
     private(set) var activePairCount = 0
     private(set) var completedPairs = 0
     private(set) var failedPairs = 0
@@ -477,16 +478,21 @@ public final class AutomationOrchestrator {
     public func runPairedTasks(_ tasks: [PairedTask], allowedDomains: Set<String> = []) async {
         logger.info("Orchestrator: launching \(tasks.count) paired tasks (max \(self.maxConcurrentPairs) concurrent)")
 
+        // Pre-warm recycler pool at batch start
+        WebViewRecycler.shared.prewarm()
+
         // Process tasks in batches of maxConcurrentPairs
         for batchStart in stride(from: 0, to: tasks.count, by: maxConcurrentPairs) {
             let batchEnd = min(batchStart + maxConcurrentPairs, tasks.count)
             let batch = Array(tasks[batchStart..<batchEnd])
 
             await withTaskGroup(of: Bool.self) { group in
-                for task in batch {
+                for (index, task) in batch.enumerated() {
+                    let pairIndex = batchStart + index
+                    let pool = WebViewProcessPoolManager.shared.pool(forPairIndex: pairIndex)
                     group.addTask {
                         await MainActor.run { self.activePairCount += 1 }
-                        let session = AutomationPairSession(task: task, allowedDomains: allowedDomains)
+                        let session = AutomationPairSession(task: task, allowedDomains: allowedDomains, processPool: pool)
                         do {
                             try await session.execute()
                             await MainActor.run {
@@ -515,6 +521,13 @@ public final class AutomationOrchestrator {
         }
 
         logger.info("Orchestrator: complete — \(self.completedPairs) succeeded, \(self.failedPairs) failed")
+    }
+
+    public func emergencyStop() {
+        WebViewRecycler.shared.emergencyFlush()
+        WebViewPool.shared.reset()
+        reset()
+        logger.warning("Orchestrator: EMERGENCY STOP — flushed recycler and reset pool")
     }
 
     public func reset() {

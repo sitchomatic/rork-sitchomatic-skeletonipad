@@ -301,7 +301,8 @@ class AdaptiveConcurrencyEngine {
         )
         recordHistoryPoint()
 
-        if isDeathSpiral || memMB > 8000 {
+        let profile = DeviceCapability.performanceProfile
+        if isDeathSpiral || memMB > profile.memoryThresholdEmergencyMB {
             if livePairCount > 1 {
                 if preEmergencyPairCount == nil { preEmergencyPairCount = livePairCount }
                 applyDecision(newConcurrency: 1, reasoning: "EMERGENCY: Memory death spiral (\(memMB)MB) — dropping to 1 pair", wasAI: false)
@@ -310,7 +311,7 @@ class AdaptiveConcurrencyEngine {
         }
 
         if activeStrategy == .fullSend {
-            if let preCrash = preEmergencyPairCount, memMB < 5000, !isDeathSpiral {
+            if let preCrash = preEmergencyPairCount, memMB < profile.memoryThresholdHighMB, !isDeathSpiral {
                 preEmergencyPairCount = nil
                 applyDecision(newConcurrency: preCrash, reasoning: "Full send: recovered from emergency — restoring \(preCrash) pairs", wasAI: false)
             } else if preEmergencyPairCount == nil && livePairCount < maxCap {
@@ -320,17 +321,17 @@ class AdaptiveConcurrencyEngine {
         }
 
         if activeStrategy == .fixedPairs || activeStrategy == .liveUserAdjustable {
-            if memMB > 5000 && livePairCount > 4 {
+            if memMB > profile.memoryThresholdHighMB && livePairCount > 4 {
                 if preEmergencyPairCount == nil { preEmergencyPairCount = livePairCount }
                 applyDecision(newConcurrency: 4, reasoning: "High memory (\(memMB)MB) — temporary cap at 4 pairs", wasAI: false)
-            } else if let preCrash = preEmergencyPairCount, memMB < 3500 {
+            } else if let preCrash = preEmergencyPairCount, memMB < profile.memoryThresholdSoftMB {
                 preEmergencyPairCount = nil
                 applyDecision(newConcurrency: preCrash, reasoning: "Memory recovered — restoring \(preCrash) pairs", wasAI: false)
             }
             return
         }
 
-        if memMB > 5000 && livePairCount > 4 {
+        if memMB > profile.memoryThresholdHighMB && livePairCount > 4 {
             applyDecision(newConcurrency: 4, reasoning: "High memory (\(memMB)MB) — capping at 4 pairs", wasAI: false)
             return
         }
@@ -356,7 +357,7 @@ class AdaptiveConcurrencyEngine {
             && Date().timeIntervalSince(lastRampUpTime) >= rampUpCooldownSeconds
             && stability > 0.65
             && !isBackground
-            && memMB < 3500
+            && memMB < profile.memoryThresholdSoftMB
             && timeoutRate < 0.1
             && connectionFailureRate < 0.1
 

@@ -5,9 +5,10 @@
 // Provides LoginSiteWebSession, LoginWebSession, BPointWebSession,
 // WebViewTracker, DeadSessionDetector, SessionActivityMonitor.
 //
-// Each session uses an ISOLATED WKProcessPool + nonPersistent
-// WKWebsiteDataStore per instance with native async WebKit evaluation
-// and WKScriptMessageHandlerWithReply for zero-bridge JS communication.
+// Each session uses a SHARED WKProcessPool via WebViewProcessPoolManager
+// + nonPersistent WKWebsiteDataStore per instance for cookie isolation,
+// with native async WebKit evaluation and WKScriptMessageHandlerWithReply
+// for zero-bridge JS communication.
 
 import Foundation
 @preconcurrency import WebKit
@@ -103,9 +104,7 @@ class LoginSiteWebSession: NSObject {
         sessionId.uuidString.prefix(8).lowercased() + "-" + (targetURL.host ?? "unknown")
     }
 
-    /// Per-instance isolated process pool (Apex architecture).
-    private let isolatedProcessPool = WKProcessPool()
-    /// Per-instance isolated data store (Apex architecture).
+    /// Per-instance isolated data store (Apex architecture — cookies/storage isolated per session).
     private let isolatedDataStore = WKWebsiteDataStore.nonPersistent()
 
     private var pageLoadContinuation: CheckedContinuation<Bool, Never>?
@@ -148,7 +147,7 @@ class LoginSiteWebSession: NSObject {
         processTerminated = false
 
         let config = WKWebViewConfiguration()
-        config.processPool = isolatedProcessPool
+        config.processPool = WebViewProcessPoolManager.shared.pool()
         config.websiteDataStore = isolatedDataStore
         config.preferences.javaScriptCanOpenWindowsAutomatically = true
         config.defaultWebpagePreferences.allowsContentJavaScript = true
@@ -1376,7 +1375,6 @@ class LoginWebSession: NSObject, ScreenshotCapableSession {
     // MARK: Private / Isolation State
 
     private let sessionId: UUID = UUID()
-    private let isolatedProcessPool = WKProcessPool()
     private let isolatedDataStore = WKWebsiteDataStore.nonPersistent()
 
     private var pageLoadContinuation: CheckedContinuation<Bool, Never>?
@@ -1410,7 +1408,7 @@ class LoginWebSession: NSObject, ScreenshotCapableSession {
         }
 
         let config = WKWebViewConfiguration()
-        config.processPool = isolatedProcessPool
+        config.processPool = WebViewProcessPoolManager.shared.pool()
         config.websiteDataStore = isolatedDataStore
         config.preferences.javaScriptCanOpenWindowsAutomatically = true
         config.defaultWebpagePreferences.allowsContentJavaScript = true
@@ -2119,7 +2117,6 @@ class BPointWebSession: NSObject, ScreenshotCapableSession {
     // MARK: Private / Isolation State
 
     private let sessionId: UUID = UUID()
-    private let isolatedProcessPool = WKProcessPool()
     private let isolatedDataStore = WKWebsiteDataStore.nonPersistent()
 
     private var pageLoadContinuation: CheckedContinuation<Bool, Never>?
@@ -2152,7 +2149,7 @@ class BPointWebSession: NSObject, ScreenshotCapableSession {
         if webView != nil { tearDown() }
 
         let config = WKWebViewConfiguration()
-        config.processPool = isolatedProcessPool
+        config.processPool = WebViewProcessPoolManager.shared.pool()
         config.websiteDataStore = isolatedDataStore
         config.preferences.javaScriptCanOpenWindowsAutomatically = true
         config.defaultWebpagePreferences.allowsContentJavaScript = true
