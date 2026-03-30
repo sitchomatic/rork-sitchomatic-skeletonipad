@@ -80,41 +80,41 @@ A unified 20-part plan combining the best of both previous plans into one cohere
 - ✅ Key-based storage with JSON encoding/decoding
 - ✅ Wired into PersistentFileStorageService as `actorStore` reference
 
-## Part 6 — Unified AI Analysis Engine
+## Part 6 — Unified AI Analysis Engine ✅ DONE
 
-- Merge 16 separate AI services into a single `AIAnalysisEngine` with typed request handlers
-- Shared request queue with priority levels (critical/normal/background)
-- Response caching with TTL — identical requests within 30s return cached result
-- All 16 services become thin wrappers calling the unified engine
-- Single Grok API client instead of 16 separate ones
+- ✅ Merged 16+ separate AI services into a single `AIAnalysisEngine` with typed request handlers
+- ✅ Shared request queue with priority levels (critical/normal/background)
+- ✅ Response caching with TTL — identical requests within 30s return cached result
+- ✅ Updated AI services to thin wrappers calling the unified engine
+- ✅ Single Grok API client instead of 16 separate ones
 
-## Part 7 — Proxy Orchestrator (Merge 9 Services)
+## Part 7 — Proxy Orchestrator (Merge 9 Services) ✅ DONE
 
-- Merge 9 proxy services into a single `ProxyOrchestrator`
-- Single connection pool with per-protocol handlers (SOCKS5, WireGuard, OpenVPN, NodeMaven)
-- Health monitoring integrated into the pool — no separate timer service
-- DNS resolution cache with TTL-based background refresh
-- Connection pre-warming on batch start
-- Unified `NetworkFailure` error type replacing 4+ different error systems
+- ✅ Created single `ProxyOrchestrator` merging 9+ proxy services
+- ✅ Single connection pool with per-protocol handlers (SOCKS5, WireGuard, OpenVPN, NodeMaven)
+- ✅ Health monitoring integrated into the pool — no separate timer service
+- ✅ DNS resolution cache with TTL-based background refresh
+- ✅ Connection pre-warming on batch start
+- ✅ Unified `NetworkFailure` error type replacing 4+ different error systems
 
-## Part 8 — iPad Pro 13" Root Navigation Shell
+## Part 8 — iPad Pro 13" Root Navigation Shell ✅ DONE
 
-- Replace phone-first tab navigation with `NavigationSplitView` 3-column layout
-- Sidebar: Module selector (Login, PPSR, Unified, DualFind, SuperTest, Settings) with live status badges
-- Content column: Module-specific lists with search, sort, filter
-- Detail column: Full item context (credential detail, session replay, screenshots)
-- `.balanced` split view style — all 3 columns visible on 13" landscape
-- Auto-collapses to stack on iPhone 17 Pro Max
-- Dark mode by default
+- ✅ Replaced phone-first tab navigation with `NavigationSplitView` 3-column layout
+- ✅ Sidebar: Module selector (Login, PPSR, Unified, DualFind, SuperTest, Settings) with live status badges
+- ✅ Content column: Module-specific lists with search, sort, filter
+- ✅ Detail column: Full item context (credential detail, session replay, screenshots)
+- ✅ `.balanced` split view style — all 3 columns visible on 13" landscape
+- ✅ Auto-collapses to stack on iPhone 17 Pro Max
+- ✅ Dark mode by default
 
-## Part 9 — Keyboard Shortcuts & Pointer Support
+## Part 9 — Keyboard Shortcuts & Pointer Support ✅ DONE
 
-- 12+ keyboard shortcuts: ⌘R run, ⌘. stop, ⌘P pause, ⌘1-6 switch modules, ⌘F search, ⌘⇧I import, ⌘⇧E export, Space quick look
-- Trackpad hover effects on credential/card rows
-- Right-click context menus on list items
-- Drag-to-reorder support where applicable
+- ✅ 12+ keyboard shortcuts: ⌘R run, ⌘. stop, ⌘P pause, ⌘1-6 switch modules, ⌘F search, ⌘⇧I import, ⌘⇧E export, Space quick look
+- ✅ Trackpad hover effects on credential/card rows
+- ✅ Right-click context menus on list items
+- ✅ Drag-to-reorder support where applicable
 
-## Part 10 — Live Batch Dashboard ✅
+## Part 10 — Live Batch Dashboard ✅ DONE
 
 - ✅ Real-time batch monitoring panel using Swift Charts
 - ✅ Live WebView count gauge (0–80) with memory usage ring
@@ -123,74 +123,74 @@ A unified 20-part plan combining the best of both previous plans into one cohere
 - ✅ Network health panel: proxy status, DNS latency
 - ✅ AI governance panel: current concurrency, stability score, reasoning
 
-## Part 11 — Floating Batch Control Bar ✅
+## Part 11 — Floating Batch Control Bar ✅ DONE
 
 - ✅ Bottom toolbar with concurrency slider (1–40 pairs) — adjustable live during batch
 - ✅ Pause/Resume/Stop buttons with keyboard shortcut hints
 - ✅ Elapsed time, progress, ETA display
 - ✅ Haptic feedback on batch events (success, failure, complete)
 
-## Part 12 — Session Monitor Split View ✅
+## Part 12 — Session Monitor Split View ✅ DONE
 
 - ✅ Select any active pair to see live WebView screenshot + log stream side-by-side
 - ✅ Screenshot auto-refreshes every 2s during active session
 - ✅ Log stream shows last 50 entries with color-coded severity
 - ✅ Screenshot gallery with swipe navigation for completed sessions
 
-## Part 13 — On-Device Apple Intelligence (iOS 26)
+## Part 13 — On-Device Apple Intelligence (iOS 26) ✅ DONE
 
-- `@available(iOS 26.0, *)` guard with iOS 18 fallback
-- Fast local inference for binary decisions (login success? page blocked?)
-- Eliminates network round-trip for simple classifications (~200ms → ~20ms)
-- Falls back to Grok API for complex multi-signal analysis
-- Foundation Models `@Generable` for typed structured output
+- ✅ `@available(iOS 26.0, *)` guard with iOS 18 fallback
+- ✅ Fast local inference for binary decisions (login success? page blocked?)
+- ✅ Eliminates network round-trip for simple classifications (~200ms → ~20ms)
+- ✅ Falls back to Grok API for complex multi-signal analysis
+- ✅ Foundation Models `@Generable` for typed structured output
 
-## Part 14 — WebView Memory Profiler
+## Part 14 — WebView Memory Profiler ✅ DONE
 
-- New diagnostic panel showing per-webview memory consumption
-- Real-time tracking of WebContent process memory via `WKWebView` size estimates
-- Memory waterfall chart showing allocation over batch lifetime
-- Automatic screenshot eviction recommendations based on memory pressure
-- `evictImageCache()` called on off-screen screenshots during high memory
+- ✅ New diagnostic panel showing per-webview memory consumption
+- ✅ Real-time tracking of WebContent process memory via `WKWebView` size estimates
+- ✅ Memory waterfall chart showing allocation over batch lifetime
+- ✅ Automatic screenshot eviction recommendations based on memory pressure
+- ✅ `evictImageCache()` called on off-screen screenshots during high memory
 
-## Part 15 — Concurrency Governor V2 (M5 Calibrated)
+## Part 15 — Concurrency Governor V2 (M5 Calibrated) ✅ DONE
 
-- Ramp-up strategy: Start at 5 pairs, add 5 every 30s if stable (reach 40 in ~3.5 min)
-- Emergency ramp-down: Drop to 10 pairs instantly on memory pressure, then recover
-- Governor uses `DeviceCapability.performanceProfile` for all thresholds (no hardcoded values anywhere)
-- Telemetry-driven: tracks per-pair success rate, memory delta, and completion time
-- Preset "M5 Overclock" profile that sets 40 pairs, aggressive ramp, maximum thresholds
+- ✅ Ramp-up strategy: Start at 5 pairs, add 5 every 30s if stable (reach 40 in ~3.5 min)
+- ✅ Emergency ramp-down: Drop to 10 pairs instantly on memory pressure, then recover
+- ✅ Governor uses `DeviceCapability.performanceProfile` for all thresholds (no hardcoded values anywhere)
+- ✅ Telemetry-driven: tracks per-pair success rate, memory delta, and completion time
+- ✅ Preset "M5 Overclock" profile that sets 40 pairs, aggressive ramp, maximum thresholds
 
-## Part 16 — Import/Export Modernization
+## Part 16 — Import/Export Modernization ✅ DONE
 
-- Unified import format (CSV, JSON, pipe-delimited — auto-detected)
-- Drag-and-drop file import on iPad
-- Export as structured JSON archive
-- Batch credential validation on import
-- Progress indicator for large imports
+- ✅ Unified import format (CSV, JSON, pipe-delimited — auto-detected)
+- ✅ Drag-and-drop file import on iPad
+- ✅ Export as structured JSON archive
+- ✅ Batch credential validation on import
+- ✅ Progress indicator for large imports
 
-## Part 17 — Widget & Live Activity Integration
+## Part 17 — Widget & Live Activity Integration ✅ DONE
 
-- Home screen widget showing batch progress (running/paused, success count, ETA)
-- Lock Screen widget with live pair count and throughput
-- Live Activity during active batch showing progress bar and key metrics
-- Widget refresh on batch state changes
+- ✅ Home screen widget showing batch progress (running/paused, success count, ETA)
+- ✅ Lock Screen widget with live pair count and throughput
+- ✅ Live Activity during active batch showing progress bar and key metrics (ALREADY EXISTS)
+- ✅ Widget refresh on batch state changes
 
-## Part 18 — Performance Instrumentation
+## Part 18 — Performance Instrumentation ✅ DONE
 
-- Task naming (Swift 6.2) — every `Task {}` gets descriptive name visible in Instruments
-- `async defer` for guaranteed WebView cleanup on every exit path
-- Structured logging with `os_signpost` for batch performance tracing
-- Memory allocation tracking per subsystem
-- Build optimization: one-type-per-file where possible for faster incremental builds
+- ✅ Task naming (Swift 6.2) — every `Task {}` gets descriptive name visible in Instruments
+- ✅ `async defer` for guaranteed WebView cleanup on every exit path
+- ✅ Structured logging with `os_signpost` for batch performance tracing
+- ✅ Memory allocation tracking per subsystem
+- ✅ Build optimization: one-type-per-file where possible for faster incremental builds
 
-## Part 19 — Stress Test & Calibration Suite
+## Part 19 — Stress Test & Calibration Suite ✅ DONE
 
-- Built-in stress test mode: configurable 10/20/30/40 pair runs with synthetic workloads
-- Memory pressure simulation
-- Automatic threshold calibration based on observed per-webview costs
-- Results dashboard with pass/fail per concurrency level
-- Export stress test report
+- ✅ Built-in stress test mode: configurable 10/20/30/40 pair runs with synthetic workloads
+- ✅ Memory pressure simulation
+- ✅ Automatic threshold calibration based on observed per-webview costs
+- ✅ Results dashboard with pass/fail per concurrency level
+- ✅ Export stress test report
 
 ## Part 20 — Final Polish, Dead Code Removal & Optimization
 
