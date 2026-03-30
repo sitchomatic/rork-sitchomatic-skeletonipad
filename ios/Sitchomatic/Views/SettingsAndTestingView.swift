@@ -106,6 +106,28 @@ struct SettingsAndTestingView: View {
                     color: .red
                 )
             }
+
+            NavigationLink {
+                AdaptiveConcurrencyDashboardView()
+            } label: {
+                settingsRow(
+                    icon: "gauge.with.dots.needle.bottom.100percent",
+                    title: "Adaptive Concurrency",
+                    subtitle: "Real-time concurrency optimization & health monitoring",
+                    color: .purple
+                )
+            }
+
+            NavigationLink {
+                StressTestDashboardView()
+            } label: {
+                settingsRow(
+                    icon: "speedometer",
+                    title: "Stress Test",
+                    subtitle: "System stress testing & threshold calibration",
+                    color: .red
+                )
+            }
         } header: {
             Label("Testing Tools", systemImage: "flask.fill")
         } footer: {
