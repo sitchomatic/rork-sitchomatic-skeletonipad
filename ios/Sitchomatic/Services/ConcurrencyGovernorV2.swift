@@ -206,7 +206,7 @@ final class ConcurrencyGovernorV2 {
         // Check memory pressure
         let memoryProfile = DeviceCapability.performanceProfile
         let (_, _, totalMB) = WebViewMemoryProfiler.shared.getCurrentMemoryUsage()
-        let memoryOK = totalMB < Double(memoryProfile.safeMemoryMB) * 0.75
+        let memoryOK = totalMB < Double(memoryProfile.memoryThresholdSoftMB) * 0.75
 
         return successRate >= threshold && memoryOK
     }

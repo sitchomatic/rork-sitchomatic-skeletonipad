@@ -459,13 +459,12 @@ final class ProxyOrchestrator {
     private func testProxyConnection(_ proxy: ProxyConfig) async {
         let start = Date()
 
-        // Simplified health check - actual implementation would test real connectivity
-        let success = Bool.random() // Placeholder - replace with actual health check
-        let latencyMs = Int.random(in: 50...200)
+        // Delegate to existing health monitor for connectivity status
+        let healthMonitor = ProxyHealthMonitor.shared
+        let success = healthMonitor.upstreamHealth.isHealthy
+        let latencyMs = healthMonitor.upstreamHealth.latencyMs ?? Int(Date().timeIntervalSince(start) * 1000)
 
-        let duration = Date().timeIntervalSince(start)
-
-        recordConnectionResult(proxyId: proxy.id, success: success, latencyMs: latencyMs)
+        recordConnectionResult(proxyId: proxy.id, success: success, latencyMs: max(latencyMs, 1))
 
         if !success {
             logger.log("ProxyOrchestrator: health check FAILED for \(proxy.displayName)", category: .networking, level: .warning)

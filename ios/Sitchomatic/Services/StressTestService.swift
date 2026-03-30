@@ -149,7 +149,7 @@ final class StressTestService {
             let pressureCount = pressureEventCount
 
             let profile = DeviceCapability.performanceProfile
-            let passed = pressureCount <= 2 && peakMB < Int(profile.emergencyThresholdMB)
+            let passed = pressureCount <= 2 && peakMB < profile.memoryThresholdEmergencyMB
             let failureReason: String? = passed ? nil : (pressureCount > 2 ? "Too many memory pressure events (\(pressureCount))" : "Peak memory exceeded emergency threshold (\(peakMB)MB)")
 
             let result = StressTestResult(

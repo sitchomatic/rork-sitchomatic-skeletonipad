@@ -47,7 +47,7 @@ final class WidgetBridgeService {
 
     // MARK: - Live Activity
 
-    func startLiveActivity(batchLabel: String = "Batch Run") {
+    func startLiveActivity(siteLabel: String = "Sitchomatic", siteMode: String = "joe", batchLabel: String = "Batch Run") {
         guard ActivityAuthorizationInfo().areActivitiesEnabled else {
             logger.log("Live Activities not enabled", category: .system, level: .warning)
             return
@@ -55,16 +55,22 @@ final class WidgetBridgeService {
 
         let batch = BatchStateManager.shared
         let engine = AdaptiveConcurrencyEngine.shared
-        let attributes = CommandCenterActivityAttributes(batchLabel: batchLabel)
+        let attributes = CommandCenterActivityAttributes(siteLabel: siteLabel, siteMode: siteMode, batchLabel: batchLabel)
+        let completed = batch.successCount + batch.failureCount
+        let successRate = completed > 0 ? Double(batch.successCount) / Double(completed) : 0
         let state = CommandCenterActivityAttributes.ContentState(
-            status: batch.isPaused ? "Paused" : "Running",
-            pairCount: engine.livePairCount,
-            successCount: batch.successCount,
-            failCount: batch.failureCount,
-            elapsed: batch.elapsedSeconds,
-            throughputPerMinute: batch.throughputPerMinute,
+            completedCount: completed,
             totalCount: batch.totalCount,
-            eta: estimateETA(batch: batch)
+            workingCount: batch.successCount,
+            failedCount: batch.failureCount,
+            statusLabel: batch.isPaused ? "PAUSED" : "RUNNING",
+            elapsedSeconds: Int(batch.elapsedSeconds),
+            isPaused: batch.isPaused,
+            isStopping: batch.isStopping,
+            successRate: successRate,
+            throughputPerMinute: batch.throughputPerMinute,
+            eta: estimateETA(batch: batch),
+            pairCount: engine.livePairCount
         )
 
         do {
@@ -86,15 +92,22 @@ final class WidgetBridgeService {
 
         let batch = BatchStateManager.shared
         let engine = AdaptiveConcurrencyEngine.shared
+        let completed = batch.successCount + batch.failureCount
+        let successRate = completed > 0 ? Double(batch.successCount) / Double(completed) : 0
+        let statusLabel: String = batch.isStopping ? "STOPPING" : (batch.isPaused ? "PAUSED" : "RUNNING")
         let state = CommandCenterActivityAttributes.ContentState(
-            status: batch.isPaused ? "Paused" : (batch.isStopping ? "Stopping" : "Running"),
-            pairCount: engine.livePairCount,
-            successCount: batch.successCount,
-            failCount: batch.failureCount,
-            elapsed: batch.elapsedSeconds,
-            throughputPerMinute: batch.throughputPerMinute,
+            completedCount: completed,
             totalCount: batch.totalCount,
-            eta: estimateETA(batch: batch)
+            workingCount: batch.successCount,
+            failedCount: batch.failureCount,
+            statusLabel: statusLabel,
+            elapsedSeconds: Int(batch.elapsedSeconds),
+            isPaused: batch.isPaused,
+            isStopping: batch.isStopping,
+            successRate: successRate,
+            throughputPerMinute: batch.throughputPerMinute,
+            eta: estimateETA(batch: batch),
+            pairCount: engine.livePairCount
         )
 
         Task {
@@ -106,15 +119,21 @@ final class WidgetBridgeService {
         guard let activity = activeActivity else { return }
 
         let batch = BatchStateManager.shared
+        let completed = batch.successCount + batch.failureCount
+        let successRate = completed > 0 ? Double(batch.successCount) / Double(completed) : 0
         let finalState = CommandCenterActivityAttributes.ContentState(
-            status: "Completed",
-            pairCount: 0,
-            successCount: batch.successCount,
-            failCount: batch.failureCount,
-            elapsed: batch.elapsedSeconds,
-            throughputPerMinute: batch.throughputPerMinute,
+            completedCount: completed,
             totalCount: batch.totalCount,
-            eta: "—"
+            workingCount: batch.successCount,
+            failedCount: batch.failureCount,
+            statusLabel: "COMPLETE",
+            elapsedSeconds: Int(batch.elapsedSeconds),
+            isPaused: false,
+            isStopping: false,
+            successRate: successRate,
+            throughputPerMinute: batch.throughputPerMinute,
+            eta: "—",
+            pairCount: 0
         )
 
         Task {

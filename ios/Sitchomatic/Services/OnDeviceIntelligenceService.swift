@@ -139,20 +139,16 @@ final class OnDeviceIntelligenceService {
     // MARK: - Fallback Path
 
     private func classifyWithFallback(_ query: ClassificationQuery, start: DispatchTime) async -> ClassificationResult {
-        let payload: [String: String] = [
-            "input": query.input,
-            "context": query.context ?? "",
-            "queryType": query.queryType.rawValue
-        ]
+        let systemPrompt = "You are a binary classifier. Respond with ONLY 'true' or 'false'. Classify whether the following page content indicates: \(query.queryType.rawValue)."
+        let userPrompt = "Page content: \(query.input)\(query.context.map { "\nContext: \($0)" } ?? "")"
 
-        let request = AIAnalysisRequest(
-            type: .automation,
+        let response = await analysisEngine.analyze(
+            systemPrompt: systemPrompt,
+            userPrompt: userPrompt,
             priority: .critical,
-            payload: payload,
-            ttl: 15.0
+            temperature: 0.1,
+            enableCache: true
         )
-
-        let response = await analysisEngine.submit(request)
         let latencyMs = millisecondsSince(start)
 
         let classification = parseClassificationResponse(response)
@@ -222,14 +218,18 @@ final class OnDeviceIntelligenceService {
 
     // MARK: - Response Parsing
 
-    private func parseClassificationResponse(_ response: AIAnalysisResponse) -> (value: Bool, confidence: Double, reasoning: String) {
-        let resultLowered = response.result.lowercased()
+    private func parseClassificationResponse(_ response: String?) -> (value: Bool, confidence: Double, reasoning: String) {
+        guard let response else {
+            return (false, 0.1, "AI engine returned no response")
+        }
+
+        let resultLowered = response.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
 
         let positiveIndicators = ["true", "yes", "detected", "confirmed", "success", "1"]
         let isPositive = positiveIndicators.contains(where: { resultLowered.contains($0) })
 
-        let confidence = max(0.1, min(response.confidence, 1.0))
-        let reasoning = response.reasoning.isEmpty ? "AI engine classification" : response.reasoning
+        let confidence: Double = isPositive ? 0.75 : 0.7
+        let reasoning = "AI engine classification: \(resultLowered.prefix(50))"
 
         return (isPositive, confidence, reasoning)
     }

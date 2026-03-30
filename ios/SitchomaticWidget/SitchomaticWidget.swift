@@ -182,55 +182,15 @@ struct StatBox: View {
     let title: String
     let value: String
 
-    private func metricView(value: String, label: String, color: Color) -> some View {
-        VStack(spacing: 1) {
-            Text(value).font(.system(size: 14, weight: .bold, design: .monospaced)).foregroundStyle(color)
-            Text(label).font(.system(size: 7, weight: .heavy, design: .monospaced)).foregroundStyle(.white.opacity(0.35))
-        }
-    }
-}
-
-struct LargeWidgetView: View {
-    let entry: BatchProgressEntry
     var body: some View {
-        VStack(spacing: 10) {
-            HStack {
-                Image(systemName: "command.circle.fill")
-                    .font(.system(size: 18, weight: .bold))
-                    .foregroundStyle(.cyan)
-                Text("COMMAND CENTER")
-                    .font(.system(size: 11, weight: .heavy, design: .monospaced))
-                    .foregroundStyle(.white)
-                Spacer()
-                Text(entry.isRunning ? (entry.isPaused ? "PAUSED" : "ACTIVE") : "IDLE")
-                    .font(.system(size: 9, weight: .heavy, design: .monospaced))
-                    .padding(.horizontal, 8).padding(.vertical, 3)
-                    .background((entry.isRunning ? (entry.isPaused ? Color.orange : .green) : .gray).opacity(0.2))
-                    .foregroundStyle(entry.isRunning ? (entry.isPaused ? .orange : .green) : .gray)
-                    .clipShape(Capsule())
-            }
-            ProgressView(value: entry.progress)
-                .tint(entry.isPaused ? .orange : .green)
-            Text("\(entry.completedCount) / \(entry.totalCount)")
-                .font(.system(size: 13, weight: .bold, design: .monospaced))
-                .foregroundStyle(.white.opacity(0.6))
-            Divider().background(.white.opacity(0.1))
-            dashRow(icon: "checkmark.circle.fill", label: "Success", value: "\(entry.successCount)", color: .green)
-            dashRow(icon: "xmark.circle.fill", label: "Failed", value: "\(entry.failCount)", color: .red)
-            dashRow(icon: "person.2.fill", label: "Pairs", value: "\(entry.pairCount)", color: .cyan)
-            dashRow(icon: "gauge.high", label: "Throughput", value: String(format: "%.1f/min", entry.throughputPerMinute), color: .white.opacity(0.8))
-            dashRow(icon: "clock.fill", label: "ETA", value: entry.eta, color: .orange)
-            Spacer(minLength: 0)
+        VStack(spacing: 4) {
+            Text(value)
+                .font(.system(size: 18, weight: .bold, design: .rounded))
+            Text(title)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
         }
-    }
-
-    private func dashRow(icon: String, label: String, value: String, color: Color) -> some View {
-        HStack {
-            Image(systemName: icon).font(.system(size: 12)).foregroundStyle(color).frame(width: 20)
-            Text(label).font(.system(size: 11, weight: .medium, design: .monospaced)).foregroundStyle(.white.opacity(0.5))
-            Spacer()
-            Text(value).font(.system(size: 13, weight: .bold, design: .monospaced)).foregroundStyle(color)
-        }
+        .frame(maxWidth: .infinity)
     }
 }
 
@@ -249,13 +209,3 @@ struct SitchomaticWidget: Widget {
         .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
     }
 }
-
-// MARK: - Family Helper
-
-private extension WidgetFamily {
-    static func current(_ entry: BatchProgressEntry) -> WidgetFamily {
-        // Determined at render time by container; default to large
-        .systemLarge
-    }
-}
-
