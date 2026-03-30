@@ -17,6 +17,7 @@ struct ServiceStatusDashboardView: View {
 
     var body: some View {
         List {
+            // Force body re-evaluation on timer tick for live status updates
             let _ = refreshTick
             coreSystemsSection
             aiServicesSection
