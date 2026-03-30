@@ -4,6 +4,10 @@ import UIKit
 class PersistentFileStorageService {
     static let shared = PersistentFileStorageService()
 
+    /// Actor-based persistence for atomic, coalesced writes.
+    /// Use this for structured data that benefits from write batching.
+    let actorStore = PersistenceActor.shared
+
     private let rootFolder = "AppVault"
     private let fileManager = FileManager.default
 
