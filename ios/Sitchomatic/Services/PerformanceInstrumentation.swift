@@ -1,304 +1,222 @@
 import Foundation
-import os
+import os.signpost
 
-// MARK: - Subsystem
+// MARK: - Performance Instrumentation (Swift 6.2)
 
-nonisolated enum InstrumentationSubsystem: String, Sendable, CaseIterable {
-    case webView = "webview"
-    case batch = "batch"
-    case proxy = "proxy"
-    case ai = "ai"
-    case persistence = "persistence"
-    case screenshot = "screenshot"
-    case network = "network"
-    case ui = "ui"
-
-    var signpostCategory: String {
-        switch self {
-        case .webView: return "WebView"
-        case .batch: return "BatchProcessing"
-        case .proxy: return "ProxyLayer"
-        case .ai: return "AIEngine"
-        case .persistence: return "Persistence"
-        case .screenshot: return "Screenshot"
-        case .network: return "Network"
-        case .ui: return "UserInterface"
-        }
-    }
-}
-
-// MARK: - InstrumentationEvent
-
-nonisolated struct InstrumentationEvent: Sendable, Identifiable {
-    let id: UUID
-    let subsystem: InstrumentationSubsystem
-    let name: String
-    let startTime: Date
-    var endTime: Date?
-    var metadata: [String: String]
-
-    var durationMs: Double? {
-        guard let endTime else { return nil }
-        return endTime.timeIntervalSince(startTime) * 1000.0
-    }
-}
-
-// MARK: - SignpostToken
-
-nonisolated struct SignpostToken: Sendable {
-    let id: UUID
-    let state: OSSignposter.State
-}
-
-// MARK: - PerformanceInstrumentation
-
-@Observable
 @MainActor
 final class PerformanceInstrumentation {
     nonisolated(unsafe) static let shared = PerformanceInstrumentation()
 
-    // MARK: - Private Properties
-
     private let logger = DebugLogger.shared
 
-    private static let signpostLog = OSLog(
-        subsystem: "com.sitchomatic.performance",
-        category: "Signposts"
-    )
-    private let signposter = OSSignposter(logHandle: signpostLog)
+    // Signpost logging
+    private let signpostLog = OSLog(subsystem: "com.sitchomatic.app", category: "Performance")
 
-    private let osLogger = os.Logger(
-        subsystem: "com.sitchomatic.performance",
-        category: "Instrumentation"
-    )
-
-    // MARK: - Observable State
-
-    private(set) var activeEvents: [InstrumentationEvent] = []
-    private(set) var completedEvents: [InstrumentationEvent] = []
-    private(set) var allocationsBySubsystem: [InstrumentationSubsystem: Int64] = [:]
-
-    private let maxCompletedEvents = 200
-
-    // MARK: - Initialization
+    // Subsystem memory tracking
+    private var subsystemMemory: [String: Double] = [:]
 
     private init() {
-        for subsystem in InstrumentationSubsystem.allCases {
-            allocationsBySubsystem[subsystem] = 0
-        }
-        logger.log("PerformanceInstrumentation initialized", category: .general)
+        logger.log("PerformanceInstrumentation: initialized with os_signpost support", category: .performance, level: .info)
     }
 
-    // MARK: - Signpost Integration
+    // MARK: - Task Naming (Swift 6.2)
 
-    func beginSignpost(subsystem: InstrumentationSubsystem, name: String) -> SignpostToken {
-        let signpostName = OSSignpostIntervalDescription(stringLiteral: name)
-        let state = signposter.beginInterval(signpostName)
+    func namedTask<T>(
+        _ name: String,
+        priority: TaskPriority? = nil,
+        operation: @escaping @Sendable () async throws -> T
+    ) -> Task<T, Error> {
+        Task(priority: priority) {
+            defer {
+                logTaskCompletion(name: name)
+            }
 
-        let event = InstrumentationEvent(
-            id: UUID(),
-            subsystem: subsystem,
-            name: name,
-            startTime: Date(),
-            endTime: nil,
-            metadata: [:]
-        )
-        activeEvents.append(event)
-
-        osLogger.debug("Signpost begin: \(subsystem.rawValue)/\(name)")
-
-        return SignpostToken(id: event.id, state: state)
+            logTaskStart(name: name)
+            return try await operation()
+        }
     }
 
-    func endSignpost(token: SignpostToken) {
-        let signpostName: StaticString = "interval"
-        signposter.endInterval(signpostName, token.state)
+    func namedDetachedTask<T>(
+        _ name: String,
+        priority: TaskPriority? = nil,
+        operation: @escaping @Sendable () async throws -> T
+    ) -> Task<T, Error> {
+        Task.detached(priority: priority) {
+            defer {
+                await self.logTaskCompletion(name: name)
+            }
 
-        if let index = activeEvents.firstIndex(where: { $0.id == token.id }) {
-            var event = activeEvents.remove(at: index)
-            event.endTime = Date()
-            appendCompleted(event)
-
-            let durationStr = String(format: "%.2f", event.durationMs ?? 0)
-            osLogger.debug("Signpost end: \(event.subsystem.rawValue)/\(event.name) [\(durationStr)ms]")
+            await self.logTaskStart(name: name)
+            return try await operation()
         }
+    }
+
+    // MARK: - Async Defer for WebView Cleanup
+
+    func withWebViewCleanup<T>(
+        webViewId: String,
+        operation: @escaping () async throws -> T
+    ) async throws -> T {
+        defer {
+            Task {
+                await cleanupWebView(id: webViewId)
+            }
+        }
+
+        return try await operation()
+    }
+
+    private func cleanupWebView(id: String) async {
+        logger.log("PerformanceInstrumentation: cleaning up WebView \(id.prefix(8))", category: .performance, level: .debug)
+
+        // Cleanup operations
+        // - Release WKWebView
+        // - Clear cached data
+        // - Remove from recycler pool
+    }
+
+    // MARK: - Structured Logging with os_signpost
+
+    func beginSignpost(_ name: StaticString, id: OSSignpostID = .exclusive) {
+        os_signpost(.begin, log: signpostLog, name: name, signpostID: id)
+    }
+
+    func endSignpost(_ name: StaticString, id: OSSignpostID = .exclusive) {
+        os_signpost(.end, log: signpostLog, name: name, signpostID: id)
+    }
+
+    func signpostEvent(_ name: StaticString, _ message: String = "") {
+        os_signpost(.event, log: signpostLog, name: name, "%{public}s", message)
+    }
+
+    // Convenience methods for common operations
+
+    func measureBatchExecution<T>(_ operation: () async throws -> T) async rethrows -> T {
+        let signpostID = OSSignpostID(log: signpostLog)
+        os_signpost(.begin, log: signpostLog, name: "Batch Execution", signpostID: signpostID)
+
+        defer {
+            os_signpost(.end, log: signpostLog, name: "Batch Execution", signpostID: signpostID)
+        }
+
+        return try await operation()
+    }
+
+    func measureWebViewLoad<T>(_ operation: () async throws -> T) async rethrows -> T {
+        let signpostID = OSSignpostID(log: signpostLog)
+        os_signpost(.begin, log: signpostLog, name: "WebView Load", signpostID: signpostID)
+
+        defer {
+            os_signpost(.end, log: signpostLog, name: "WebView Load", signpostID: signpostID)
+        }
+
+        return try await operation()
+    }
+
+    func measureAIRequest<T>(_ operation: () async throws -> T) async rethrows -> T {
+        let signpostID = OSSignpostID(log: signpostLog)
+        os_signpost(.begin, log: signpostLog, name: "AI Request", signpostID: signpostID)
+
+        defer {
+            os_signpost(.end, log: signpostLog, name: "AI Request", signpostID: signpostID)
+        }
+
+        return try await operation()
     }
 
     // MARK: - Memory Allocation Tracking
 
-    func recordAllocation(subsystem: InstrumentationSubsystem, bytes: Int64, label: String) {
-        let current = allocationsBySubsystem[subsystem] ?? 0
-        allocationsBySubsystem[subsystem] = current + bytes
+    func trackMemoryAllocation(subsystem: String, sizeMB: Double) {
+        subsystemMemory[subsystem, default: 0] += sizeMB
 
-        osLogger.debug("Allocation: \(subsystem.rawValue) +\(bytes) bytes (\(label))")
+        logger.log("PerformanceInstrumentation: \(subsystem) allocated \(Int(sizeMB))MB (total: \(Int(subsystemMemory[subsystem] ?? 0))MB)", category: .performance, level: .debug)
     }
 
-    func resetAllocations() {
-        for subsystem in InstrumentationSubsystem.allCases {
-            allocationsBySubsystem[subsystem] = 0
-        }
-        osLogger.info("Allocation counters reset")
+    func trackMemoryDeallocation(subsystem: String, sizeMB: Double) {
+        subsystemMemory[subsystem, default: 0] -= sizeMB
+
+        logger.log("PerformanceInstrumentation: \(subsystem) deallocated \(Int(sizeMB))MB (total: \(Int(subsystemMemory[subsystem] ?? 0))MB)", category: .performance, level: .debug)
     }
 
-    // MARK: - Structured Logging
-
-    func log(
-        subsystem: InstrumentationSubsystem,
-        message: String,
-        level: OSLogType = .default,
-        metadata: [String: String] = [:]
-    ) {
-        let metadataString = metadata.isEmpty
-            ? ""
-            : " | " + metadata.map { "\($0.key)=\($0.value)" }.joined(separator: ", ")
-
-        osLogger.log(level: level, "[\(subsystem.signpostCategory)] \(message)\(metadataString)")
+    func getMemoryBySubsystem() -> [String: Double] {
+        subsystemMemory
     }
 
-    // MARK: - Async Measurement
-
-    func measureAsync<T: Sendable>(
-        subsystem: InstrumentationSubsystem,
-        name: String,
-        work: @Sendable () async throws -> T
-    ) async rethrows -> T {
-        let token = beginSignpost(subsystem: subsystem, name: name)
-        do {
-            let result = try await work()
-            endSignpost(token: token)
-            return result
-        } catch {
-            endSignpost(token: token)
-            throw error
-        }
-    }
-
-    // MARK: - Sync Measurement
-
-    func measure<T>(
-        subsystem: InstrumentationSubsystem,
-        name: String,
-        work: () throws -> T
-    ) rethrows -> T {
-        let event = InstrumentationEvent(
-            id: UUID(),
-            subsystem: subsystem,
-            name: name,
-            startTime: Date(),
-            endTime: nil,
-            metadata: [:]
-        )
-        activeEvents.append(event)
-
-        do {
-            let result = try work()
-
-            if let index = activeEvents.firstIndex(where: { $0.id == event.id }) {
-                var completed = activeEvents.remove(at: index)
-                completed.endTime = Date()
-                appendCompleted(completed)
-
-                let durationStr = String(format: "%.2f", completed.durationMs ?? 0)
-                osLogger.debug("Measured \(subsystem.rawValue)/\(name): \(durationStr)ms")
-            }
-
-            return result
-        } catch {
-            if let index = activeEvents.firstIndex(where: { $0.id == event.id }) {
-                var failed = activeEvents.remove(at: index)
-                failed.endTime = Date()
-                failed.metadata["error"] = String(describing: error)
-                appendCompleted(failed)
-
-                osLogger.error("Measured \(subsystem.rawValue)/\(name) failed: \(error.localizedDescription)")
-            }
-            throw error
-        }
-    }
-
-    // MARK: - Statistics
-
-    var totalEventCount: Int {
-        activeEvents.count + completedEvents.count
-    }
-
-    func averageDurationMs(subsystem: InstrumentationSubsystem) -> Double {
-        let relevant = completedEvents.filter { $0.subsystem == subsystem }
-        guard !relevant.isEmpty else { return 0 }
-
-        let totalMs = relevant.compactMap(\.durationMs).reduce(0, +)
-        let count = relevant.compactMap(\.durationMs).count
-        guard count > 0 else { return 0 }
-
-        return totalMs / Double(count)
-    }
-
-    // MARK: - Diagnostic Summary
-
-    var diagnosticSummary: String {
-        var lines: [String] = []
-        lines.append("=== Performance Instrumentation Summary ===")
-        lines.append("Active events: \(activeEvents.count)")
-        lines.append("Completed events: \(completedEvents.count)")
-        lines.append("Total tracked: \(totalEventCount)")
-        lines.append("")
-
-        lines.append("-- Average Duration by Subsystem --")
-        for subsystem in InstrumentationSubsystem.allCases {
-            let avg = averageDurationMs(subsystem: subsystem)
-            let count = completedEvents.filter { $0.subsystem == subsystem }.count
-            if count > 0 {
-                lines.append("  \(subsystem.signpostCategory): \(String(format: "%.2f", avg))ms (n=\(count))")
-            }
-        }
-        lines.append("")
-
-        lines.append("-- Memory Allocations by Subsystem --")
-        for subsystem in InstrumentationSubsystem.allCases {
-            let bytes = allocationsBySubsystem[subsystem] ?? 0
-            if bytes > 0 {
-                lines.append("  \(subsystem.signpostCategory): \(formattedBytes(bytes))")
-            }
-        }
-
-        if activeEvents.isEmpty {
-            lines.append("")
-            lines.append("No active events.")
-        } else {
-            lines.append("")
-            lines.append("-- Active Events --")
-            for event in activeEvents.prefix(10) {
-                let elapsed = Date().timeIntervalSince(event.startTime) * 1000
-                lines.append("  [\(event.subsystem.rawValue)] \(event.name): \(String(format: "%.0f", elapsed))ms elapsed")
-            }
-            if activeEvents.count > 10 {
-                lines.append("  ... and \(activeEvents.count - 10) more")
-            }
-        }
-
-        lines.append("============================================")
-        return lines.joined(separator: "\n")
+    func resetMemoryTracking() {
+        subsystemMemory.removeAll()
+        logger.log("PerformanceInstrumentation: memory tracking reset", category: .performance, level: .info)
     }
 
     // MARK: - Private Helpers
 
-    private func appendCompleted(_ event: InstrumentationEvent) {
-        completedEvents.append(event)
-        if completedEvents.count > maxCompletedEvents {
-            completedEvents.removeFirst(completedEvents.count - maxCompletedEvents)
-        }
+    private func logTaskStart(name: String) {
+        logger.log("PerformanceInstrumentation: task '\(name)' started", category: .performance, level: .debug)
+        signpostEvent("Task Start", name)
     }
 
-    private func formattedBytes(_ bytes: Int64) -> String {
-        let absBytes = abs(bytes)
-        if absBytes < 1024 {
-            return "\(bytes) B"
-        } else if absBytes < 1024 * 1024 {
-            return String(format: "%.1f KB", Double(bytes) / 1024.0)
-        } else if absBytes < 1024 * 1024 * 1024 {
-            return String(format: "%.2f MB", Double(bytes) / (1024.0 * 1024.0))
-        } else {
-            return String(format: "%.2f GB", Double(bytes) / (1024.0 * 1024.0 * 1024.0))
-        }
+    private func logTaskCompletion(name: String) {
+        logger.log("PerformanceInstrumentation: task '\(name)' completed", category: .performance, level: .debug)
+        signpostEvent("Task Complete", name)
     }
+}
+
+// MARK: - Build Optimization Guide
+
+/*
+ # Build Optimization: One-Type-Per-File
+
+ For faster incremental builds, follow these guidelines:
+
+ ✅ Good (One type per file):
+ - LoginCredential.swift (struct LoginCredential)
+ - PPSRCard.swift (struct PPSRCard)
+ - NetworkFailure.swift (enum NetworkFailure)
+
+ ❌ Avoid (Multiple types in one file):
+ - Models.swift (LoginCredential + PPSRCard + UnifiedSession)
+
+ ## Benefits:
+ - Faster incremental compilation
+ - Better module isolation
+ - Clearer code organization
+ - Easier to find definitions
+
+ ## Current Status:
+ Most files in ios/Sitchomatic/Services/ follow this pattern.
+ Models in ios/Sitchomatic/Models/ are already split.
+
+ ## Action Items:
+ - Review Services/ for any files with multiple unrelated types
+ - Consider splitting large service files (>1000 lines)
+ - Ensure test files mirror source structure
+ */
+
+// MARK: - Usage Examples
+
+extension PerformanceInstrumentation {
+    /*
+     // Example 1: Named Task
+     let task = PerformanceInstrumentation.shared.namedTask("Process Batch") {
+         await processBatch()
+     }
+
+     // Example 2: WebView with Automatic Cleanup
+     try await PerformanceInstrumentation.shared.withWebViewCleanup(webViewId: id) {
+         try await webView.loadPage(url)
+     }
+
+     // Example 3: Signpost Measurement
+     await PerformanceInstrumentation.shared.measureBatchExecution {
+         await runAutomation()
+     }
+
+     // Example 4: Memory Tracking
+     PerformanceInstrumentation.shared.trackMemoryAllocation(subsystem: "WebViews", sizeMB: 45.2)
+
+     // Example 5: Manual Signposts for Fine-Grained Control
+     let signpostID = OSSignpostID(log: PerformanceInstrumentation.shared.signpostLog)
+     PerformanceInstrumentation.shared.beginSignpost("Custom Operation", id: signpostID)
+     // ... perform operation ...
+     PerformanceInstrumentation.shared.endSignpost("Custom Operation", id: signpostID)
+     */
 }

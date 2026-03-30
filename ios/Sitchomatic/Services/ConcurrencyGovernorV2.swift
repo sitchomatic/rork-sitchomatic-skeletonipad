@@ -1,359 +1,401 @@
 import Foundation
 
-// MARK: - Supporting Types
+// MARK: - Concurrency Governor V2 (M5 Calibrated)
 
-nonisolated enum GovernorV2Phase: String, Sendable, Codable {
-    case rampingUp
-    case stable
-    case rampingDown
-    case emergencyBrake
-    case cooldown
-}
-
-nonisolated struct RampStrategy: Sendable {
-    let initialPairs: Int
-    let rampIncrement: Int
-    let rampIntervalSeconds: Double
-    let cooldownSeconds: Double
-}
-
-nonisolated enum GovernorV2Preset: String, Sendable, CaseIterable {
-    case conservative
-    case balanced
-    case m5Overclock
-
-    var strategy: RampStrategy {
-        switch self {
-        case .conservative:
-            return RampStrategy(
-                initialPairs: 2,
-                rampIncrement: 2,
-                rampIntervalSeconds: 45,
-                cooldownSeconds: 60
-            )
-        case .balanced:
-            return RampStrategy(
-                initialPairs: 5,
-                rampIncrement: 5,
-                rampIntervalSeconds: 30,
-                cooldownSeconds: 45
-            )
-        case .m5Overclock:
-            return RampStrategy(
-                initialPairs: 10,
-                rampIncrement: 10,
-                rampIntervalSeconds: 20,
-                cooldownSeconds: 30
-            )
-        }
-    }
-}
-
-nonisolated struct TelemetryRecord: Sendable, Identifiable {
-    let id = UUID()
-    let timestamp: Date
+nonisolated struct ConcurrencyTelemetry: Sendable {
     let pairCount: Int
-    let memoryMB: Int
     let successRate: Double
-    let completionTimeMs: Double
-    let phase: GovernorV2Phase
+    let avgMemoryDeltaMB: Double
+    let avgCompletionTimeMs: Double
+    let timestamp: Date
 }
 
-// MARK: - ConcurrencyGovernorV2
+nonisolated struct ConcurrencyPreset: Sendable {
+    let name: String
+    let targetPairs: Int
+    let rampUpIntervalSeconds: Double
+    let pairsPerRampStep: Int
+    let aggressiveMode: Bool
 
-@Observable
+    static let conservative = ConcurrencyPreset(
+        name: "Conservative",
+        targetPairs: 20,
+        rampUpIntervalSeconds: 60,
+        pairsPerRampStep: 2,
+        aggressiveMode: false
+    )
+
+    static let balanced = ConcurrencyPreset(
+        name: "Balanced",
+        targetPairs: 30,
+        rampUpIntervalSeconds: 45,
+        pairsPerRampStep: 3,
+        aggressiveMode: false
+    )
+
+    static let m5Overclock = ConcurrencyPreset(
+        name: "M5 Overclock",
+        targetPairs: 40,
+        rampUpIntervalSeconds: 30,
+        pairsPerRampStep: 5,
+        aggressiveMode: true
+    )
+}
+
 @MainActor
-class ConcurrencyGovernorV2 {
+final class ConcurrencyGovernorV2 {
     nonisolated(unsafe) static let shared = ConcurrencyGovernorV2()
 
-    // MARK: - Public State
-
-    private(set) var currentPhase: GovernorV2Phase = .stable
-    private(set) var currentPairCount: Int = 0
-    private(set) var activePreset: GovernorV2Preset = .balanced
-    private(set) var telemetry: [TelemetryRecord] = []
-    private(set) var consecutiveStableChecks: Int = 0
-    private(set) var isRunning: Bool = false
-
-    var targetPairCount: Int {
-        DeviceCapability.performanceProfile.maxConcurrentPairs
-    }
-
-    // MARK: - Computed Metrics
-
-    var perPairSuccessRate: Double {
-        guard !telemetry.isEmpty else { return 1.0 }
-        let recent = telemetry.suffix(20)
-        let totalSuccess = recent.reduce(0.0) { $0 + $1.successRate }
-        return totalSuccess / Double(recent.count)
-    }
-
-    var perPairMemoryDeltaMB: Double {
-        guard telemetry.count >= 2 else { return 0.0 }
-        let recent = Array(telemetry.suffix(10))
-        guard let first = recent.first, let last = recent.last, last.pairCount != first.pairCount else {
-            return 0.0
-        }
-        let memoryDelta = Double(last.memoryMB - first.memoryMB)
-        let pairDelta = Double(last.pairCount - first.pairCount)
-        return pairDelta != 0 ? memoryDelta / pairDelta : 0.0
-    }
-
-    var averageCompletionTimeMs: Double {
-        guard !telemetry.isEmpty else { return 0.0 }
-        let recent = telemetry.suffix(20)
-        let total = recent.reduce(0.0) { $0 + $1.completionTimeMs }
-        return total / Double(recent.count)
-    }
-
-    var diagnosticSummary: String {
-        """
-        GovernorV2 [\(activePreset.rawValue)]
-        Phase: \(currentPhase.rawValue)
-        Pairs: \(currentPairCount)/\(targetPairCount)
-        Stable Checks: \(consecutiveStableChecks)/\(stableChecksRequired)
-        Success Rate: \(String(format: "%.1f%%", perPairSuccessRate * 100))
-        Avg Completion: \(String(format: "%.0fms", averageCompletionTimeMs))
-        Memory Delta/Pair: \(String(format: "%.1fMB", perPairMemoryDeltaMB))
-        Telemetry Records: \(telemetry.count)
-        Running: \(isRunning)
-        """
-    }
-
-    // MARK: - Private Properties
-
     private let logger = DebugLogger.shared
-    private let profile = DeviceCapability.performanceProfile
-    private let stableChecksRequired = 3
-    private let maxTelemetryRecords = 100
-    private let emergencyFallbackPairs = 10
-    private let successRateThreshold = 0.7
-    private let completionTimeDegradationFactor = 2.5
 
-    private var evaluationTask: Task<Void, Never>?
+    // State
+    private(set) var currentPairs: Int = 5
+    private(set) var targetPairs: Int = 40
+    private(set) var isRampingUp: Bool = false
+    private(set) var isRampingDown: Bool = false
+    private(set) var currentPreset: ConcurrencyPreset = .m5Overclock
+
+    // Telemetry
+    private var telemetry: [ConcurrencyTelemetry] = []
+    private let maxTelemetryEntries = 100
+
+    // Ramp-up state
+    private var rampUpTask: Task<Void, Never>?
     private var lastRampTime: Date = .distantPast
-    private var cooldownStartTime: Date?
-    private var baselineCompletionTimeMs: Double = 0.0
+    private var stabilityWindow: [Bool] = [] // success/failure tracking
+    private let stabilityWindowSize = 10
 
-    // MARK: - Lifecycle
+    // Emergency state
+    private var emergencyRampDownActive: Bool = false
+    private var emergencyRecoveryTask: Task<Void, Never>?
 
-    func start(preset: GovernorV2Preset) {
-        guard !isRunning else {
-            logger.log("GovernorV2 already running", category: .system, level: .warning)
-            return
-        }
-        activePreset = preset
-        let strategy = preset.strategy
-        currentPairCount = strategy.initialPairs
-        currentPhase = .rampingUp
-        consecutiveStableChecks = 0
-        cooldownStartTime = nil
-        lastRampTime = Date()
-        baselineCompletionTimeMs = 0.0
-        isRunning = true
-        logger.log(
-            "GovernorV2 started with \(preset.rawValue) preset",
-            category: .system, level: .info,
-            detail: "Initial pairs: \(strategy.initialPairs), target: \(targetPairCount)"
-        )
-        beginPeriodicEvaluation()
+    private init() {
+        logger.log("ConcurrencyGovernorV2: initialized with M5 Overclock preset", category: .automation, level: .info)
     }
 
-    func stop() {
-        evaluationTask?.cancel()
-        evaluationTask = nil
-        isRunning = false
-        currentPhase = .stable
-        currentPairCount = 0
-        consecutiveStableChecks = 0
-        logger.log("GovernorV2 stopped", category: .system, level: .info)
+    // MARK: - Public API
+
+    func startBatch(preset: ConcurrencyPreset = .m5Overclock) {
+        currentPreset = preset
+        targetPairs = preset.targetPairs
+        currentPairs = 5 // Always start conservative
+        isRampingUp = true
+        isRampingDown = false
+        emergencyRampDownActive = false
+        stabilityWindow = []
+
+        logger.log("ConcurrencyGovernorV2: batch started — target=\(targetPairs) pairs, ramp=\(Int(preset.rampUpIntervalSeconds))s intervals", category: .automation, level: .info)
+
+        startRampUp()
     }
 
-    // MARK: - Evaluation
+    func stopBatch() {
+        rampUpTask?.cancel()
+        rampUpTask = nil
+        emergencyRecoveryTask?.cancel()
+        emergencyRecoveryTask = nil
 
-    func evaluate() async {
-        guard isRunning else { return }
-        let memoryState = MemoryMonitor.shared.update()
-        let livePairs = AdaptiveConcurrencyEngine.shared.livePairCount
-        let stability = AIPredictiveConcurrencyGovernor.shared.currentStabilityScore
-        let strategy = activePreset.strategy
-        let successRate = computeSuccessRate(stability: stability)
-        let completionTime = estimateCompletionTime()
+        isRampingUp = false
+        isRampingDown = false
+        emergencyRampDownActive = false
 
-        switch memoryState.level {
-        case .emergency, .critical:
-            emergencyBrake()
-        case .high:
-            handleHighMemory(strategy: strategy)
-        case .soft, .normal:
-            handleNormalOperation(strategy: strategy, successRate: successRate, completionTime: completionTime)
+        logger.log("ConcurrencyGovernorV2: batch stopped", category: .automation, level: .info)
+    }
+
+    func recordPairResult(success: Bool, memoryDeltaMB: Double, completionTimeMs: Double) {
+        // Update stability window
+        stabilityWindow.append(success)
+        if stabilityWindow.count > stabilityWindowSize {
+            stabilityWindow.removeFirst()
         }
 
-        recordTelemetry(memoryMB: memoryState.mb, successRate: successRate, completionTimeMs: completionTime)
-        logger.log(
-            "GovernorV2 evaluated", category: .system, level: .trace,
-            detail: "phase=\(currentPhase.rawValue) pairs=\(currentPairCount) mem=\(memoryState.mb)MB live=\(livePairs)"
-        )
-    }
-
-    // MARK: - Emergency Handling
-
-    func emergencyBrake() {
-        let previousPairs = currentPairCount
-        currentPairCount = min(emergencyFallbackPairs, currentPairCount)
-        currentPhase = .emergencyBrake
-        consecutiveStableChecks = 0
-        logger.log(
-            "GovernorV2 EMERGENCY BRAKE", category: .system, level: .critical,
-            detail: "Dropped from \(previousPairs) to \(currentPairCount) pairs"
-        )
-    }
-
-    func recoverFromEmergency() async {
-        guard currentPhase == .emergencyBrake else { return }
-        currentPhase = .cooldown
-        cooldownStartTime = Date()
-        consecutiveStableChecks = 0
-        let strategy = activePreset.strategy
-        logger.log(
-            "GovernorV2 entering cooldown for \(strategy.cooldownSeconds)s",
-            category: .system, level: .warning
-        )
-        try? await Task.sleep(nanoseconds: UInt64(strategy.cooldownSeconds * 1_000_000_000))
-        guard isRunning, currentPhase == .cooldown else { return }
-
-        let memoryState = MemoryMonitor.shared.update()
-        if memoryState.level == .normal || memoryState.level == .soft {
-            currentPhase = .rampingUp
-            lastRampTime = Date()
-            cooldownStartTime = nil
-            logger.log(
-                "GovernorV2 recovered, resuming ramp-up", category: .system, level: .info,
-                detail: "Memory at \(memoryState.mb)MB, pairs at \(currentPairCount)"
-            )
-        } else {
-            logger.log(
-                "GovernorV2 post-cooldown memory still elevated, holding",
-                category: .system, level: .warning
-            )
-            currentPhase = .stable
-        }
-    }
-
-    // MARK: - Private Evaluation Helpers
-
-    private func handleHighMemory(strategy: RampStrategy) {
-        guard currentPhase == .rampingUp || currentPhase == .stable else { return }
-        let newCount = max(emergencyFallbackPairs, currentPairCount - strategy.rampIncrement)
-        guard newCount < currentPairCount else { return }
-        currentPairCount = newCount
-        currentPhase = .rampingDown
-        consecutiveStableChecks = 0
-        logger.log(
-            "GovernorV2 ramping down due to high memory", category: .system, level: .warning,
-            detail: "Reduced to \(currentPairCount) pairs"
-        )
-    }
-
-    private func handleNormalOperation(strategy: RampStrategy, successRate: Double, completionTime: Double) {
-        if currentPhase == .cooldown { return }
-        if currentPhase == .rampingDown {
-            currentPhase = .stable
-            consecutiveStableChecks = 0
-        }
-
-        let timeSinceLastRamp = Date().timeIntervalSince(lastRampTime)
-        let isIntervalElapsed = timeSinceLastRamp >= strategy.rampIntervalSeconds
-
-        if successRate >= successRateThreshold && !isPerformanceDegraded(completionTime: completionTime) {
-            consecutiveStableChecks += 1
-        } else {
-            consecutiveStableChecks = max(0, consecutiveStableChecks - 1)
-        }
-
-        if consecutiveStableChecks >= stableChecksRequired
-            && isIntervalElapsed
-            && currentPairCount < targetPairCount {
-            currentPairCount = min(targetPairCount, currentPairCount + strategy.rampIncrement)
-            currentPhase = .rampingUp
-            consecutiveStableChecks = 0
-            lastRampTime = Date()
-            if baselineCompletionTimeMs == 0.0 && completionTime > 0 {
-                baselineCompletionTimeMs = completionTime
-            }
-            logger.log(
-                "GovernorV2 ramped up to \(currentPairCount) pairs", category: .system, level: .info,
-                detail: "Target: \(targetPairCount), success: \(String(format: "%.1f%%", successRate * 100))"
-            )
-        } else if currentPairCount >= targetPairCount {
-            currentPhase = .stable
-        }
-    }
-
-    private func computeSuccessRate(stability: Double) -> Double {
-        return max(0.0, min(1.0, stability))
-    }
-
-    private func estimateCompletionTime() -> Double {
-        guard !telemetry.isEmpty else { return 0.0 }
-        let recent = telemetry.suffix(5)
-        let total = recent.reduce(0.0) { $0 + $1.completionTimeMs }
-        return total / Double(recent.count)
-    }
-
-    private func isPerformanceDegraded(completionTime: Double) -> Bool {
-        guard baselineCompletionTimeMs > 0, completionTime > 0 else { return false }
-        return completionTime > baselineCompletionTimeMs * completionTimeDegradationFactor
-    }
-
-    // MARK: - Telemetry
-
-    private func recordTelemetry(memoryMB: Int, successRate: Double, completionTimeMs: Double) {
-        let record = TelemetryRecord(
-            timestamp: Date(),
-            pairCount: currentPairCount,
-            memoryMB: memoryMB,
+        // Record telemetry
+        let successRate = Double(stabilityWindow.filter { $0 }.count) / Double(stabilityWindow.count)
+        let telemetryEntry = ConcurrencyTelemetry(
+            pairCount: currentPairs,
             successRate: successRate,
-            completionTimeMs: completionTimeMs,
-            phase: currentPhase
+            avgMemoryDeltaMB: memoryDeltaMB,
+            avgCompletionTimeMs: completionTimeMs,
+            timestamp: Date()
         )
-        telemetry.append(record)
+        telemetry.append(telemetryEntry)
 
-        if telemetry.count > maxTelemetryRecords {
-            telemetry.removeFirst(telemetry.count - maxTelemetryRecords)
+        if telemetry.count > maxTelemetryEntries {
+            telemetry.removeFirst(telemetry.count - maxTelemetryEntries)
+        }
+
+        logger.log("ConcurrencyGovernorV2: pair result — success=\(success), pairs=\(currentPairs), successRate=\(String(format: "%.0f%%", successRate * 100))", category: .automation, level: .debug)
+    }
+
+    func triggerEmergencyRampDown(reason: String) {
+        guard !emergencyRampDownActive else { return }
+
+        emergencyRampDownActive = true
+        isRampingUp = false
+        isRampingDown = true
+
+        let originalPairs = currentPairs
+        currentPairs = 10 // Emergency drop to 10 pairs
+
+        logger.log("ConcurrencyGovernorV2: EMERGENCY RAMP-DOWN — \(originalPairs)→\(currentPairs) pairs (reason: \(reason))", category: .automation, level: .warning)
+
+        // Start recovery after stabilization
+        emergencyRecoveryTask = Task {
+            try? await Task.sleep(for: .seconds(60)) // Wait 1 minute
+
+            guard !Task.isCancelled else { return }
+
+            await startRecovery()
         }
     }
 
-    // MARK: - Periodic Evaluation Loop
+    func getCurrentRecommendedPairs() -> Int {
+        currentPairs
+    }
 
-    private func beginPeriodicEvaluation() {
-        evaluationTask?.cancel()
+    func getStats() -> (current: Int, target: Int, successRate: Double, isStable: Bool) {
+        let successRate = stabilityWindow.isEmpty ? 1.0 : Double(stabilityWindow.filter { $0 }.count) / Double(stabilityWindow.count)
+        let isStable = successRate >= 0.8 && stabilityWindow.count >= stabilityWindowSize
+        return (currentPairs, targetPairs, successRate, isStable)
+    }
 
-        evaluationTask = Task { [weak self] in
-            while !Task.isCancelled {
-                guard let self else { return }
+    func getTelemetry() -> [ConcurrencyTelemetry] {
+        telemetry
+    }
 
-                await self.evaluate()
+    func applyPreset(_ preset: ConcurrencyPreset) {
+        currentPreset = preset
+        targetPairs = preset.targetPairs
+        logger.log("ConcurrencyGovernorV2: preset changed to \(preset.name) — target=\(preset.targetPairs) pairs", category: .automation, level: .info)
+    }
 
-                let interval = self.currentEvaluationInterval
-                try? await Task.sleep(nanoseconds: UInt64(interval * 1_000_000_000))
+    // MARK: - Private Implementation
+
+    private func startRampUp() {
+        rampUpTask?.cancel()
+
+        rampUpTask = Task {
+            while !Task.isCancelled && isRampingUp && currentPairs < targetPairs {
+                try? await Task.sleep(for: .seconds(currentPreset.rampUpIntervalSeconds))
+
+                guard !Task.isCancelled && isRampingUp else { break }
+
+                // Check stability before ramping
+                if shouldRampUp() {
+                    await rampUpStep()
+                } else {
+                    logger.log("ConcurrencyGovernorV2: ramp-up paused — waiting for stability", category: .automation, level: .info)
+                }
+            }
+
+            if currentPairs >= targetPairs {
+                isRampingUp = false
+                logger.log("ConcurrencyGovernorV2: ramp-up COMPLETE — reached target \(targetPairs) pairs", category: .automation, level: .success)
             }
         }
     }
 
-    private var currentEvaluationInterval: Double {
-        let strategy = activePreset.strategy
-        switch currentPhase {
-        case .emergencyBrake:
-            return 5.0
-        case .cooldown:
-            return 10.0
-        case .rampingDown:
-            return strategy.rampIntervalSeconds * 0.5
-        case .rampingUp:
-            return strategy.rampIntervalSeconds
-        case .stable:
-            return strategy.rampIntervalSeconds * 1.5
+    private func shouldRampUp() -> Bool {
+        // Need minimum data points
+        guard stabilityWindow.count >= stabilityWindowSize / 2 else { return true }
+
+        // Check success rate
+        let successRate = Double(stabilityWindow.filter { $0 }.count) / Double(stabilityWindow.count)
+        let threshold: Double = currentPreset.aggressiveMode ? 0.7 : 0.85
+
+        // Check memory pressure
+        let memoryProfile = DeviceCapability.performanceProfile
+        let (_, _, totalMB) = WebViewMemoryProfiler.shared.getCurrentMemoryUsage()
+        let memoryOK = totalMB < Double(memoryProfile.safeMemoryMB) * 0.75
+
+        return successRate >= threshold && memoryOK
+    }
+
+    private func rampUpStep() async {
+        let previousPairs = currentPairs
+        currentPairs = min(currentPairs + currentPreset.pairsPerRampStep, targetPairs)
+        lastRampTime = Date()
+
+        logger.log("ConcurrencyGovernorV2: ramp-up step — \(previousPairs)→\(currentPairs) pairs", category: .automation, level: .info)
+
+        // Reset stability window after ramp
+        stabilityWindow = []
+    }
+
+    private func startRecovery() async {
+        guard emergencyRampDownActive else { return }
+
+        logger.log("ConcurrencyGovernorV2: starting recovery from emergency ramp-down", category: .automation, level: .info)
+
+        emergencyRampDownActive = false
+        isRampingDown = false
+        isRampingUp = true
+
+        // Resume ramp-up with more conservative approach
+        let recoveryPreset = ConcurrencyPreset(
+            name: "Recovery",
+            targetPairs: targetPairs,
+            rampUpIntervalSeconds: currentPreset.rampUpIntervalSeconds * 1.5,
+            pairsPerRampStep: max(1, currentPreset.pairsPerRampStep / 2),
+            aggressiveMode: false
+        )
+        currentPreset = recoveryPreset
+
+        startRampUp()
+    }
+}
+
+// MARK: - Concurrency Governor Dashboard View
+
+import SwiftUI
+import Charts
+
+struct ConcurrencyGovernorDashboardView: View {
+    @State private var governor = ConcurrencyGovernorV2.shared
+    @State private var refreshTrigger = false
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 20) {
+                // Header
+                Text("Concurrency Governor V2")
+                    .font(.title2.bold())
+                    .padding()
+
+                // Current Stats
+                let (current, target, successRate, isStable) = governor.getStats()
+
+                HStack(spacing: 16) {
+                    StatCard(
+                        title: "Current Pairs",
+                        value: "\(current)",
+                        subtitle: "of \(target) target",
+                        color: current >= target ? .green : .blue
+                    )
+
+                    StatCard(
+                        title: "Success Rate",
+                        value: "\(Int(successRate * 100))%",
+                        subtitle: isStable ? "stable" : "stabilizing",
+                        color: successRate >= 0.8 ? .green : .orange
+                    )
+
+                    StatCard(
+                        title: "Status",
+                        value: governor.isRampingUp ? "Ramping Up" : "Stable",
+                        subtitle: governor.currentPreset.name,
+                        color: .purple
+                    )
+                }
+                .padding(.horizontal)
+
+                // Telemetry Chart
+                let telemetry = governor.getTelemetry()
+                if !telemetry.isEmpty {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Pair Count & Success Rate Over Time")
+                            .font(.headline)
+                            .padding(.horizontal)
+
+                        Chart {
+                            ForEach(telemetry, id: \.timestamp) { entry in
+                                LineMark(
+                                    x: .value("Time", entry.timestamp),
+                                    y: .value("Pairs", entry.pairCount)
+                                )
+                                .foregroundStyle(.blue)
+
+                                LineMark(
+                                    x: .value("Time", entry.timestamp),
+                                    y: .value("Success %", entry.successRate * 100)
+                                )
+                                .foregroundStyle(.green)
+                            }
+                        }
+                        .frame(height: 200)
+                        .padding()
+                    }
+                    .background(.ultraThinMaterial)
+                    .cornerRadius(12)
+                    .padding(.horizontal)
+                }
+
+                // Preset Selector
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Presets")
+                        .font(.headline)
+
+                    HStack(spacing: 12) {
+                        PresetButton(preset: .conservative)
+                        PresetButton(preset: .balanced)
+                        PresetButton(preset: .m5Overclock)
+                    }
+                }
+                .padding()
+                .background(.ultraThinMaterial)
+                .cornerRadius(12)
+                .padding(.horizontal)
+            }
+            .padding(.vertical)
         }
+        .task {
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(2))
+                refreshTrigger.toggle()
+            }
+        }
+    }
+}
+
+struct PresetButton: View {
+    let preset: ConcurrencyPreset
+    @State private var governor = ConcurrencyGovernorV2.shared
+
+    var body: some View {
+        Button(action: {
+            governor.applyPreset(preset)
+        }) {
+            VStack(spacing: 4) {
+                Text(preset.name)
+                    .font(.headline)
+                Text("\(preset.targetPairs) pairs")
+                    .font(.caption)
+            }
+            .frame(maxWidth: .infinity)
+            .padding()
+            .background(governor.currentPreset.name == preset.name ? Color.blue.opacity(0.2) : Color.clear)
+            .cornerRadius(8)
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(Color.blue, lineWidth: governor.currentPreset.name == preset.name ? 2 : 1)
+            )
+        }
+    }
+}
+
+struct StatCard: View {
+    let title: String
+    let value: String
+    let subtitle: String
+    let color: Color
+
+    var body: some View {
+        VStack(spacing: 8) {
+            Text(title)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            Text(value)
+                .font(.title2.bold())
+                .foregroundStyle(color)
+
+            Text(subtitle)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding()
+        .background(.ultraThinMaterial)
+        .cornerRadius(12)
     }
 }

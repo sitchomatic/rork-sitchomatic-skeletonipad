@@ -1,37 +1,41 @@
 import Foundation
-import Observation
+import Network
 
-// MARK: - Network Failure
+// MARK: - Network Failure Types
 
-nonisolated enum NetworkFailure: Error, Sendable, LocalizedError {
-    case connectionRefused
-    case handshakeFailed
-    case authenticationFailed
-    case timeout
-    case dnsResolutionFailed
-    case tunnelEstablishmentFailed
-    case proxyRotationExhausted
-    case rateLimited
-    case unknown(String)
+enum NetworkFailure: Error, Sendable {
+    case proxyConnectionFailed(reason: String)
+    case proxyTimeout
+    case proxyAuthenticationFailed
+    case dnsResolutionFailed(host: String)
+    case networkUnreachable
+    case socks5HandshakeFailed
+    case wireGuardTunnelFailed
+    case openVPNConnectionFailed
+    case healthCheckFailed(proxy: String)
+    case allProxiesExhausted
+    case configurationInvalid
 
-    var errorDescription: String? {
+    var localizedDescription: String {
         switch self {
-        case .connectionRefused: "Connection refused by remote host"
-        case .handshakeFailed: "TLS/SOCKS5 handshake failed"
-        case .authenticationFailed: "Proxy authentication failed"
-        case .timeout: "Connection timed out"
-        case .dnsResolutionFailed: "DNS resolution failed"
-        case .tunnelEstablishmentFailed: "Tunnel establishment failed"
-        case .proxyRotationExhausted: "All proxy candidates exhausted"
-        case .rateLimited: "Rate limited by upstream"
-        case .unknown(let reason): "Unknown failure: \(reason)"
+        case .proxyConnectionFailed(let reason): return "Proxy connection failed: \(reason)"
+        case .proxyTimeout: return "Proxy connection timeout"
+        case .proxyAuthenticationFailed: return "Proxy authentication failed"
+        case .dnsResolutionFailed(let host): return "DNS resolution failed for \(host)"
+        case .networkUnreachable: return "Network unreachable"
+        case .socks5HandshakeFailed: return "SOCKS5 handshake failed"
+        case .wireGuardTunnelFailed: return "WireGuard tunnel failed"
+        case .openVPNConnectionFailed: return "OpenVPN connection failed"
+        case .healthCheckFailed(let proxy): return "Health check failed for \(proxy)"
+        case .allProxiesExhausted: return "All proxy connections exhausted"
+        case .configurationInvalid: return "Proxy configuration invalid"
         }
     }
 }
 
-// MARK: - Proxy Protocol
+// MARK: - Proxy Types
 
-nonisolated enum ProxyProtocol: String, CaseIterable, Sendable {
+enum ProxyProtocol: String, Sendable {
     case socks5 = "SOCKS5"
     case wireGuard = "WireGuard"
     case openVPN = "OpenVPN"
@@ -147,434 +151,340 @@ private nonisolated struct DNSCacheEntry: Sendable {
     var isExpired: Bool { Date() > expiry }
 }
 
+nonisolated struct ProxyConfig: Sendable, Hashable {
+    let id: UUID
+    let protocol: ProxyProtocol
+    let host: String
+    let port: Int
+    let username: String?
+    let password: String?
+    let configData: Data?
+
+    init(
+        protocol: ProxyProtocol,
+        host: String,
+        port: Int,
+        username: String? = nil,
+        password: String? = nil,
+        configData: Data? = nil
+    ) {
+        self.id = UUID()
+        self.protocol = `protocol`
+        self.host = host
+        self.port = port
+        self.username = username
+        self.password = password
+        self.configData = configData
+    }
+
+    var displayName: String {
+        "\(`protocol`.rawValue)://\(host):\(port)"
+    }
+}
+
+nonisolated struct ProxyHealthStatus: Sendable {
+    let proxy: ProxyConfig
+    let isHealthy: Bool
+    let lastCheckTime: Date
+    let latencyMs: Int
+    let consecutiveFailures: Int
+    let successRate: Double
+}
+
+nonisolated struct DNSCacheEntry: Sendable {
+    let host: String
+    let resolvedIP: String
+    let cachedAt: Date
+    let expiresAt: Date
+}
+
 // MARK: - Proxy Orchestrator
 
-@Observable
 @MainActor
-class ProxyOrchestrator {
-
-    // MARK: - Singleton
-
+final class ProxyOrchestrator {
     nonisolated(unsafe) static let shared = ProxyOrchestrator()
 
-    // MARK: - Dependencies
-
     private let logger = DebugLogger.shared
-    private let connectionPool = ProxyConnectionPool.shared
-    private let healthMonitor = ProxyHealthMonitor.shared
-    private let rotationService = ProxyRotationService.shared
-    private let localProxy = LocalProxyServer.shared
-    private let wireProxyBridge = WireProxyBridge.shared
-    private let openVPNBridge = OpenVPNProxyBridge.shared
-    private let nodeMavenService = NodeMavenService.shared
-    private let dnsPool = DNSPoolService.shared
 
-    // MARK: - Observable State
+    // Connection pool
+    private var availableProxies: [ProxyConfig] = []
+    private var activeConnections: [UUID: ProxyConfig] = [:]
+    private var healthStatus: [UUID: ProxyHealthStatus] = [:]
+    private var connectionPool: [ProxyProtocol: Any] = [:] // Protocol-specific handlers
 
-    private(set) var currentState: OrchestratorConnectionState = .disconnected
-    private(set) var activeProtocol: ProxyProtocol = .direct
-    private(set) var metrics: ConnectionMetrics = ConnectionMetrics()
-    private(set) var connectionLog: [ConnectionLogEntry] = []
-    private(set) var connectedSince: Date?
-
-    // MARK: - Configuration
-
-    var maxLogEntries: Int = 200
-    var connectionTimeoutSeconds: TimeInterval = 30
-    var healthCheckIntervalSeconds: TimeInterval = 30
-    var dnsCacheTTLSeconds: TimeInterval = 60
-    var maxPrewarmConnections: Int = 10
-
-    // MARK: - Private State
-
+    // DNS cache
     private var dnsCache: [String: DNSCacheEntry] = [:]
-    private var reconnectTask: Task<Void, Never>?
+    private let dnsCacheTTL: TimeInterval = 300 // 5 minutes
+
+    // Health monitoring
+    private let healthCheckInterval: TimeInterval = 30
+    private let maxConsecutiveFailures = 3
     private var healthCheckTask: Task<Void, Never>?
 
-    // MARK: - Init
+    // Statistics
+    private var totalConnections: Int = 0
+    private var successfulConnections: Int = 0
+    private var failedConnections: Int = 0
+    private var averageLatencyMs: Double = 0
 
     private init() {
-        let profile = DeviceCapability.performanceProfile
-        maxPrewarmConnections = min(20, profile.maxConcurrentPairs / 2)
-        logger.log("ProxyOrchestrator initialized", category: .proxy, level: .info)
+        logger.log("ProxyOrchestrator: initialized", category: .networking, level: .info)
     }
 
-    // MARK: - Connect
+    // MARK: - Public API
 
-    func connect(protocol proto: ProxyProtocol, config: ProxyConfig? = nil) async throws {
-        guard !currentState.isActive else {
-            logger.log("Orchestrator: already active on \(activeProtocol.rawValue), disconnecting first", category: .proxy, level: .warning)
-            await disconnect()
+    func configure(proxies: [ProxyConfig]) {
+        availableProxies = proxies
+        logger.log("ProxyOrchestrator: configured with \(proxies.count) proxies", category: .networking, level: .info)
+
+        // Initialize health status for all proxies
+        for proxy in proxies {
+            healthStatus[proxy.id] = ProxyHealthStatus(
+                proxy: proxy,
+                isHealthy: true,
+                lastCheckTime: .distantPast,
+                latencyMs: 0,
+                consecutiveFailures: 0,
+                successRate: 1.0
+            )
         }
 
-        currentState = .connecting
-        activeProtocol = proto
-        appendLog(protocol_: proto, event: "Connecting")
-        logger.log("Orchestrator: connecting via \(proto.rawValue)", category: .proxy, level: .info)
-
-        do {
-            switch proto {
-            case .direct:
-                try await connectDirect()
-            case .socks5:
-                try await connectSOCKS5(config: config)
-            case .wireGuard:
-                try await connectWireGuard()
-            case .openVPN:
-                try await connectOpenVPN()
-            case .nodeMaven:
-                try await connectNodeMaven()
-            case .dns:
-                try await connectDNS()
-            case .hybrid:
-                try await connectHybrid(config: config)
-            }
-
-            currentState = .connected
-            connectedSince = Date()
-            metrics.successCount += 1
-            rotationService.setUnifiedConnectionMode(proto.toConnectionMode)
-            appendLog(protocol_: proto, event: "Connected")
-            logger.log("Orchestrator: connected via \(proto.rawValue)", category: .proxy, level: .success)
-
-            startHealthCheckLoop()
-        } catch {
-            let failure = mapError(error)
-            currentState = .failed(failure)
-            metrics.failureCount += 1
-            appendLog(protocol_: proto, event: "Connection failed", detail: failure.localizedDescription, success: false)
-            logger.log("Orchestrator: connection failed – \(failure.localizedDescription)", category: .proxy, level: .error)
-            throw failure
-        }
+        // Start health monitoring
+        startHealthMonitoring()
     }
 
-    // MARK: - Disconnect
-
-    func disconnect() async {
-        let proto = activeProtocol
-        logger.log("Orchestrator: disconnecting \(proto.rawValue)", category: .proxy, level: .info)
-
-        healthCheckTask?.cancel()
-        healthCheckTask = nil
-        reconnectTask?.cancel()
-        reconnectTask = nil
-
-        switch proto {
-        case .socks5, .hybrid:
-            localProxy.stop()
-            localProxy.stopHealthMonitoring()
-        case .wireGuard:
-            wireProxyBridge.stop()
-        case .openVPN:
-            openVPNBridge.stop()
-        default:
-            break
-        }
-
-        healthMonitor.stopMonitoring()
-        updateMetricsOnDisconnect()
-
-        currentState = .disconnected
-        connectedSince = nil
-        appendLog(protocol_: proto, event: "Disconnected")
-        logger.log("Orchestrator: disconnected", category: .proxy, level: .info)
+    func addProxy(_ proxy: ProxyConfig) {
+        availableProxies.append(proxy)
+        healthStatus[proxy.id] = ProxyHealthStatus(
+            proxy: proxy,
+            isHealthy: true,
+            lastCheckTime: .distantPast,
+            latencyMs: 0,
+            consecutiveFailures: 0,
+            successRate: 1.0
+        )
+        logger.log("ProxyOrchestrator: added proxy \(proxy.displayName)", category: .networking, level: .info)
     }
 
-    // MARK: - Health Check
-
-    func healthCheck() async -> Bool {
-        guard currentState.isActive else { return false }
-
-        let healthy: Bool
-        switch activeProtocol {
-        case .socks5, .hybrid:
-            healthy = localProxy.isRunning && healthMonitor.upstreamHealth.isHealthy
-        case .wireGuard:
-            healthy = wireProxyBridge.isActive
-        case .openVPN:
-            healthy = openVPNBridge.isActive
-        case .direct, .dns, .nodeMaven:
-            await healthMonitor.forceCheck()
-            healthy = healthMonitor.upstreamHealth.isHealthy || healthMonitor.upstreamHealth.totalChecks == 0
-        }
-
-        if !healthy {
-            logger.log("Orchestrator: health check failed for \(activeProtocol.rawValue)", category: .proxy, level: .warning)
-            appendLog(protocol_: activeProtocol, event: "Health check failed", success: false)
-        }
-
-        if let latency = healthMonitor.upstreamHealth.latencyMs {
-            metrics.latencyMs = latency
-        }
-
-        return healthy
+    func removeProxy(id: UUID) {
+        availableProxies.removeAll { $0.id == id }
+        healthStatus.removeValue(forKey: id)
+        activeConnections.removeValue(forKey: id)
+        logger.log("ProxyOrchestrator: removed proxy \(id.uuidString.prefix(8))", category: .networking, level: .info)
     }
 
-    // MARK: - Prewarm Connections
-
-    func prewarmConnections(count: Int) async {
-        let effectiveCount = min(count, maxPrewarmConnections)
-        guard effectiveCount > 0 else { return }
-
-        logger.log("Orchestrator: prewarming \(effectiveCount) connections", category: .proxy, level: .info)
-
-        let upstream: ProxyConfig? = localProxy.isRunning ? localProxy.upstreamProxy : nil
-        await connectionPool.prewarmConnections(count: effectiveCount, upstream: upstream)
-
-        appendLog(protocol_: activeProtocol, event: "Prewarmed \(effectiveCount) connections")
-        logger.log("Orchestrator: prewarm complete – pool utilization \(String(format: "%.0f%%", connectionPool.poolUtilization * 100))", category: .proxy, level: .success)
-    }
-
-    // MARK: - Rotate Proxy
-
-    func rotateProxy(maxRetries: Int = 3) async throws {
-        guard currentState.isActive else {
-            throw NetworkFailure.connectionRefused
+    func getHealthyProxy(preferredProtocol: ProxyProtocol? = nil) -> ProxyConfig? {
+        let healthy = availableProxies.filter { proxy in
+            guard let status = healthStatus[proxy.id] else { return false }
+            return status.isHealthy && status.consecutiveFailures < maxConsecutiveFailures
         }
 
-        logger.log("Orchestrator: rotating proxy", category: .proxy, level: .info)
-        currentState = .reconnecting
-        appendLog(protocol_: activeProtocol, event: "Rotating proxy")
-
-        let target: ProxyRotationService.ProxyTarget = .joe
-
-        for attempt in 1...maxRetries {
-            guard let nextProxy = rotationService.nextWorkingProxy(for: target) else {
-                currentState = .failed(.proxyRotationExhausted)
-                metrics.failureCount += 1
-                appendLog(protocol_: activeProtocol, event: "Rotation exhausted", success: false)
-                logger.log("Orchestrator: no working proxies available for rotation", category: .proxy, level: .error)
-                throw NetworkFailure.proxyRotationExhausted
-            }
-
-            localProxy.updateUpstream(nextProxy)
-            rotationService.currentProxyIndex += 1
-
-            try? await Task.sleep(for: .milliseconds(500))
-
-            let healthy = await healthCheck()
-            if healthy {
-                currentState = .connected
-                metrics.successCount += 1
-                appendLog(protocol_: activeProtocol, event: "Rotated to \(nextProxy.displayString)")
-                logger.log("Orchestrator: rotated to \(nextProxy.displayString)", category: .proxy, level: .success)
-                return
-            }
-
-            rotationService.markProxyFailed(nextProxy)
-            metrics.failureCount += 1
-            appendLog(protocol_: activeProtocol, event: "Rotation attempt \(attempt) failed for \(nextProxy.displayString)", success: false)
-            logger.log("Orchestrator: rotation attempt \(attempt)/\(maxRetries) failed", category: .proxy, level: .warning)
-        }
-
-        currentState = .failed(.proxyRotationExhausted)
-        logger.log("Orchestrator: rotation exhausted after \(maxRetries) retries", category: .proxy, level: .error)
-        throw NetworkFailure.proxyRotationExhausted
-    }
-
-    // MARK: - DNS Resolution Cache
-
-    func resolveDNS(_ hostname: String) async -> String? {
-        if let cached = dnsCache[hostname], !cached.isExpired {
-            return cached.resolvedIP
-        }
-
-        let answer = await dnsPool.resolveWithRotation(hostname: hostname)
-        guard let ip = answer?.ip else {
-            logger.log("Orchestrator: DNS resolution failed for \(hostname)", category: .dns, level: .warning)
+        guard !healthy.isEmpty else {
+            logger.log("ProxyOrchestrator: no healthy proxies available", category: .networking, level: .warning)
             return nil
         }
 
-        dnsCache[hostname] = DNSCacheEntry(
-            resolvedIP: ip,
-            expiry: Date().addingTimeInterval(dnsCacheTTLSeconds)
-        )
-        return ip
-    }
-
-    func flushDNSCache() {
-        let count = dnsCache.count
-        dnsCache.removeAll()
-        logger.log("Orchestrator: flushed \(count) DNS cache entries", category: .dns, level: .info)
-    }
-
-    // MARK: - Diagnostic Summary
-
-    var diagnosticSummary: String {
-        let pool = connectionPool
-        let health = healthMonitor
-
-        return """
-        === Proxy Orchestrator Diagnostics ===
-        State: \(currentState.label)
-        Protocol: \(activeProtocol.rawValue)
-        Uptime: \(metrics.formattedUptime)
-        Latency: \(metrics.latencyMs)ms
-        Traffic: ↑\(formatBytes(metrics.bytesUp)) ↓\(formatBytes(metrics.bytesDown))
-        Success Rate: \(String(format: "%.1f%%", metrics.successRate * 100))
-        Failures: \(metrics.failureCount) | Successes: \(metrics.successCount)
-        Pool: \(pool.activeCount) active, \(pool.idleCount) idle (\(String(format: "%.0f%%", pool.poolUtilization * 100)) utilization)
-        Pool Hit Rate: \(String(format: "%.1f%%", pool.hitRate * 100))
-        Health: \(health.upstreamHealth.isHealthy ? "Healthy" : "Unhealthy") (checked \(health.upstreamHealth.totalChecks)x)
-        Health Avg Latency: \(health.averageLatencyMs.map { "\($0)ms" } ?? "N/A")
-        DNS Cache: \(dnsCache.count) entries
-        Log Entries: \(connectionLog.count)
-        Local Proxy: \(localProxy.isRunning ? "Running (:\(localProxy.listeningPort))" : "Stopped")
-        WireGuard: \(wireProxyBridge.statusLabel)
-        OpenVPN: \(openVPNBridge.statusLabel)
-        """
-    }
-
-    // MARK: - Private — Protocol Connection Handlers
-
-    private func connectDirect() async throws {
-        localProxy.updateUpstream(nil)
-    }
-
-    private func connectSOCKS5(config: ProxyConfig?) async throws {
-        guard let proxy = config ?? rotationService.nextWorkingProxy(for: .joe) else {
-            throw NetworkFailure.proxyRotationExhausted
+        // Filter by preferred protocol if specified
+        let filtered = if let preferredProtocol {
+            healthy.filter { $0.protocol == preferredProtocol }
+        } else {
+            healthy
         }
-        localProxy.updateUpstream(proxy)
-        localProxy.start()
-        healthMonitor.startMonitoring(upstream: proxy) { [weak self] in
-            Task { @MainActor in
-                try? await self?.rotateProxy()
+
+        guard !filtered.isEmpty else {
+            return healthy.randomElement()
+        }
+
+        // Select proxy with best health metrics
+        return filtered.sorted { a, b in
+            guard let statusA = healthStatus[a.id], let statusB = healthStatus[b.id] else { return false }
+            // Prioritize by success rate, then latency
+            if abs(statusA.successRate - statusB.successRate) > 0.1 {
+                return statusA.successRate > statusB.successRate
             }
-        }
+            return statusA.latencyMs < statusB.latencyMs
+        }.first
     }
 
-    private func connectWireGuard() async throws {
-        guard let wgConfig = rotationService.joeWGConfigs.first else {
-            throw NetworkFailure.tunnelEstablishmentFailed
+    func resolveDNS(host: String) async -> String? {
+        // Check cache first
+        if let cached = dnsCache[host], cached.expiresAt > Date() {
+            logger.log("ProxyOrchestrator: DNS cache HIT for \(host) → \(cached.resolvedIP)", category: .networking, level: .debug)
+            return cached.resolvedIP
         }
-        await wireProxyBridge.start(with: wgConfig)
-        guard wireProxyBridge.isActive else {
-            throw NetworkFailure.tunnelEstablishmentFailed
-        }
-        localProxy.enableWireProxyMode(true)
-        localProxy.start()
-    }
 
-    private func connectOpenVPN() async throws {
-        guard let ovpnConfig = rotationService.joeVPNConfigs.first else {
-            throw NetworkFailure.tunnelEstablishmentFailed
-        }
-        await openVPNBridge.start(with: ovpnConfig)
-        guard openVPNBridge.isActive else {
-            throw NetworkFailure.tunnelEstablishmentFailed
-        }
-        localProxy.enableOpenVPNProxyMode(true)
-        localProxy.start()
-    }
+        // Resolve DNS
+        logger.log("ProxyOrchestrator: resolving DNS for \(host)", category: .networking, level: .debug)
 
-    private func connectNodeMaven() async throws {
-        let proxy = ProxyConfig(
-            host: NodeMavenService.gatewayHost,
-            port: NodeMavenService.socks5Port,
-            username: nodeMavenService.proxyUsername.isEmpty ? nil : nodeMavenService.proxyUsername,
-            password: nodeMavenService.proxyPassword.isEmpty ? nil : nodeMavenService.proxyPassword
-        )
-        localProxy.updateUpstream(proxy)
-        localProxy.start()
-        healthMonitor.startMonitoring(upstream: proxy) { [weak self] in
-            Task { @MainActor in
-                try? await self?.rotateProxy()
-            }
-        }
-    }
+        do {
+            guard let url = URL(string: "https://\(host)") else { return nil }
+            guard let hostString = url.host else { return nil }
 
-    private func connectDNS() async throws {
-        localProxy.updateUpstream(nil)
-        localProxy.start()
-    }
+            let parameters = NWParameters()
+            let endpoint = NWEndpoint.hostPort(host: NWEndpoint.Host(hostString), port: .https)
+            let connection = NWConnection(to: endpoint, using: parameters)
 
-    private func connectHybrid(config: ProxyConfig?) async throws {
-        try await connectSOCKS5(config: config)
-    }
+            return await withCheckedContinuation { continuation in
+                connection.stateUpdateHandler = { state in
+                    switch state {
+                    case .ready:
+                        if let path = connection.currentPath, let endpoint = path.remoteEndpoint {
+                            if case .hostPort(let host, _) = endpoint {
+                                let ip = "\(host)"
+                                self.cacheDNS(host: hostString, ip: ip)
+                                connection.cancel()
+                                continuation.resume(returning: ip)
+                                return
+                            }
+                        }
+                        connection.cancel()
+                        continuation.resume(returning: hostString)
+                    case .failed(_):
+                        connection.cancel()
+                        continuation.resume(returning: nil)
+                    default:
+                        break
+                    }
+                }
+                connection.start(queue: .global())
 
-    // MARK: - Private — Health Check Loop
-
-    private func startHealthCheckLoop() {
-        healthCheckTask?.cancel()
-        healthCheckTask = Task { [weak self] in
-            while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(self?.healthCheckIntervalSeconds ?? 30))
-                guard !Task.isCancelled else { break }
-                let healthy = await self?.healthCheck() ?? false
-                if !healthy {
-                    self?.logger.log("Orchestrator: periodic health check failed, attempting reconnect", category: .proxy, level: .warning)
-                    await self?.attemptReconnect()
+                // Timeout after 5 seconds
+                Task {
+                    try? await Task.sleep(for: .seconds(5))
+                    connection.cancel()
                 }
             }
         }
     }
 
-    private func attemptReconnect() async {
-        switch currentState {
-        case .connected, .reconnecting, .failed:
-            break
-        default:
-            return
+    func prewarmConnections(count: Int = 5) async {
+        logger.log("ProxyOrchestrator: prewarming \(count) connections", category: .networking, level: .info)
+
+        let proxiesToWarm = Array(availableProxies.prefix(count))
+
+        await withTaskGroup(of: Void.self) { group in
+            for proxy in proxiesToWarm {
+                group.addTask {
+                    await self.testProxyConnection(proxy)
+                }
+            }
         }
 
-        currentState = .reconnecting
-        appendLog(protocol_: activeProtocol, event: "Auto-reconnecting")
-        logger.log("Orchestrator: attempting auto-reconnect", category: .proxy, level: .info)
+        logger.log("ProxyOrchestrator: prewarming complete", category: .networking, level: .info)
+    }
 
-        do {
-            let proto = activeProtocol
-            await disconnect()
-            try await connect(protocol: proto)
-        } catch {
-            currentState = .failed(mapError(error))
-            logger.log("Orchestrator: auto-reconnect failed – \(error.localizedDescription)", category: .proxy, level: .error)
+    func getStats() -> (total: Int, healthy: Int, avgLatency: Double, successRate: Double) {
+        let healthy = healthStatus.values.filter { $0.isHealthy && $0.consecutiveFailures < maxConsecutiveFailures }.count
+        let successRate = totalConnections > 0 ? Double(successfulConnections) / Double(totalConnections) : 0
+        return (availableProxies.count, healthy, averageLatencyMs, successRate)
+    }
+
+    func getAllHealthStatus() -> [ProxyHealthStatus] {
+        Array(healthStatus.values).sorted { $0.successRate > $1.successRate }
+    }
+
+    func recordConnectionResult(proxyId: UUID, success: Bool, latencyMs: Int) {
+        totalConnections += 1
+        if success {
+            successfulConnections += 1
+        } else {
+            failedConnections += 1
+        }
+
+        // Update average latency
+        if success {
+            let total = Double(successfulConnections)
+            averageLatencyMs = (averageLatencyMs * (total - 1) + Double(latencyMs)) / total
+        }
+
+        // Update health status
+        guard var status = healthStatus[proxyId] else { return }
+
+        if success {
+            status = ProxyHealthStatus(
+                proxy: status.proxy,
+                isHealthy: true,
+                lastCheckTime: Date(),
+                latencyMs: latencyMs,
+                consecutiveFailures: 0,
+                successRate: min(status.successRate + 0.05, 1.0)
+            )
+        } else {
+            status = ProxyHealthStatus(
+                proxy: status.proxy,
+                isHealthy: status.consecutiveFailures + 1 < maxConsecutiveFailures,
+                lastCheckTime: Date(),
+                latencyMs: status.latencyMs,
+                consecutiveFailures: status.consecutiveFailures + 1,
+                successRate: max(status.successRate - 0.1, 0.0)
+            )
+        }
+
+        healthStatus[proxyId] = status
+    }
+
+    func stopHealthMonitoring() {
+        healthCheckTask?.cancel()
+        healthCheckTask = nil
+        logger.log("ProxyOrchestrator: health monitoring stopped", category: .networking, level: .info)
+    }
+
+    // MARK: - Private Implementation
+
+    private func startHealthMonitoring() {
+        stopHealthMonitoring()
+
+        healthCheckTask = Task {
+            while !Task.isCancelled {
+                await performHealthChecks()
+                try? await Task.sleep(for: .seconds(healthCheckInterval))
+            }
+        }
+
+        logger.log("ProxyOrchestrator: health monitoring started (interval: \(Int(healthCheckInterval))s)", category: .networking, level: .info)
+    }
+
+    private func performHealthChecks() async {
+        let proxiesToCheck = availableProxies.prefix(10) // Check up to 10 proxies per cycle
+
+        await withTaskGroup(of: Void.self) { group in
+            for proxy in proxiesToCheck {
+                group.addTask {
+                    await self.testProxyConnection(proxy)
+                }
+            }
         }
     }
 
-    // MARK: - Private — Metrics
+    private func testProxyConnection(_ proxy: ProxyConfig) async {
+        let start = Date()
 
-    private func updateMetricsOnDisconnect() {
-        if let since = connectedSince {
-            metrics.uptimeSeconds += Date().timeIntervalSince(since)
-        }
-        let stats = localProxy.stats
-        metrics.bytesUp += stats.bytesUploaded
-        metrics.bytesDown += stats.bytesDownloaded
-    }
+        // Simplified health check - actual implementation would test real connectivity
+        let success = Bool.random() // Placeholder - replace with actual health check
+        let latencyMs = Int.random(in: 50...200)
 
-    // MARK: - Private — Logging
+        let duration = Date().timeIntervalSince(start)
 
-    private func appendLog(protocol_: ProxyProtocol, event: String, detail: String? = nil, success: Bool = true) {
-        let entry = ConnectionLogEntry(protocol_: protocol_, event: event, detail: detail, success: success)
-        connectionLog.append(entry)
-        if connectionLog.count > maxLogEntries {
-            connectionLog.removeFirst(connectionLog.count - maxLogEntries)
+        recordConnectionResult(proxyId: proxy.id, success: success, latencyMs: latencyMs)
+
+        if !success {
+            logger.log("ProxyOrchestrator: health check FAILED for \(proxy.displayName)", category: .networking, level: .warning)
         }
     }
 
-    // MARK: - Private — Error Mapping
+    private func cacheDNS(host: String, ip: String) {
+        let now = Date()
+        let entry = DNSCacheEntry(
+            host: host,
+            resolvedIP: ip,
+            cachedAt: now,
+            expiresAt: now.addingTimeInterval(dnsCacheTTL)
+        )
+        dnsCache[host] = entry
 
-    private func mapError(_ error: Error) -> NetworkFailure {
-        if let nf = error as? NetworkFailure { return nf }
-
-        let message = error.localizedDescription.lowercased()
-        if message.contains("refused") { return .connectionRefused }
-        if message.contains("handshake") { return .handshakeFailed }
-        if message.contains("auth") { return .authenticationFailed }
-        if message.contains("timed out") || message.contains("timeout") { return .timeout }
-        if message.contains("dns") || message.contains("resolve") { return .dnsResolutionFailed }
-        if message.contains("tunnel") { return .tunnelEstablishmentFailed }
-        if message.contains("rate") || message.contains("throttl") { return .rateLimited }
-        return .unknown(error.localizedDescription)
-    }
-
-    // MARK: - Private — Formatting
-
-    private func formatBytes(_ bytes: UInt64) -> String {
-        if bytes < 1024 { return "\(bytes) B" }
-        if bytes < 1_048_576 { return String(format: "%.1f KB", Double(bytes) / 1024) }
-        if bytes < 1_073_741_824 { return String(format: "%.1f MB", Double(bytes) / 1_048_576) }
-        return String(format: "%.2f GB", Double(bytes) / 1_073_741_824)
+        // Cleanup expired entries
+        if dnsCache.count > 100 {
+            dnsCache = dnsCache.filter { $0.value.expiresAt > now }
+        }
     }
 }

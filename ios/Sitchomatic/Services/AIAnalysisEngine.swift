@@ -1,366 +1,294 @@
 import Foundation
 
-// MARK: - Request Type
+// MARK: - Request Types
 
-nonisolated enum AIRequestType: String, CaseIterable, Sendable, Codable {
-    case antiDetection
-    case automation
-    case batchInsight
-    case challengeSolving
-    case checkpointVerification
-    case confidenceAnalysis
-    case credentialPriority
-    case credentialTriage
-    case customTools
-    case fingerprintTuning
-    case loginURLOptimization
-    case batchPreOptimization
-    case proxyStrategy
-    case interactionGraph
-    case runHealth
-    case sessionHealth
-    case timingOptimization
-}
-
-// MARK: - Request Priority
-
-nonisolated enum AIRequestPriority: Int, Comparable, Sendable, Codable {
+enum AIRequestPriority: Int, Comparable, Sendable {
     case critical = 0
     case normal = 1
     case background = 2
 
-    nonisolated static func < (lhs: AIRequestPriority, rhs: AIRequestPriority) -> Bool {
+    static func < (lhs: AIRequestPriority, rhs: AIRequestPriority) -> Bool {
         lhs.rawValue < rhs.rawValue
     }
 }
 
-// MARK: - Analysis Request
-
-nonisolated struct AIAnalysisRequest: Sendable, Identifiable {
+struct AIAnalysisRequest: Sendable {
     let id: UUID
-    let type: AIRequestType
+    let systemPrompt: String
+    let userPrompt: String
     let priority: AIRequestPriority
-    let payload: [String: String]
+    let model: GrokModel
+    let temperature: Double
+    let jsonMode: Bool
+    let cacheKey: String?
     let timestamp: Date
-    let ttl: TimeInterval
 
     init(
-        id: UUID = UUID(),
-        type: AIRequestType,
+        systemPrompt: String,
+        userPrompt: String,
         priority: AIRequestPriority = .normal,
-        payload: [String: String] = [:],
-        timestamp: Date = Date(),
-        ttl: TimeInterval = 30.0
+        model: GrokModel = .standard,
+        temperature: Double = 0.3,
+        jsonMode: Bool = false,
+        cacheKey: String? = nil
     ) {
-        self.id = id
-        self.type = type
+        self.id = UUID()
+        self.systemPrompt = systemPrompt
+        self.userPrompt = userPrompt
         self.priority = priority
-        self.payload = payload
-        self.timestamp = timestamp
-        self.ttl = ttl
-    }
-
-    var cacheKey: String {
-        let sortedPayload = payload.sorted { $0.key < $1.key }
-            .map { "\($0.key)=\($0.value)" }
-            .joined(separator: "&")
-        return "\(type.rawValue)|\(sortedPayload)"
+        self.model = model
+        self.temperature = temperature
+        self.jsonMode = jsonMode
+        self.cacheKey = cacheKey
+        self.timestamp = Date()
     }
 }
 
-// MARK: - Analysis Response
-
-nonisolated struct AIAnalysisResponse: Sendable, Identifiable {
-    var id: UUID { requestId }
-    let requestId: UUID
-    let type: AIRequestType
-    let result: String
-    let confidence: Double
-    let reasoning: String
-    let timestamp: Date
-    let cached: Bool
-}
-
-// MARK: - Cache Entry
-
-private struct CacheEntry: Sendable {
-    let response: AIAnalysisResponse
+nonisolated struct CachedResponse: Sendable {
+    let response: String
+    let cachedAt: Date
     let expiresAt: Date
-
-    var isExpired: Bool {
-        Date() > expiresAt
-    }
 }
 
-// MARK: - Queue Statistics
-
-nonisolated struct AIQueueStatistics: Sendable {
-    let pendingCount: Int
-    let processingCount: Int
-    let completedCount: Int
-    let cacheHits: Int
-    let cacheMisses: Int
-    let cacheSize: Int
+nonisolated struct AIAnalysisStats: Sendable {
+    var totalRequests: Int = 0
+    var cacheHits: Int = 0
+    var cacheMisses: Int = 0
+    var queuedRequests: Int = 0
+    var processingRequests: Int = 0
+    var completedRequests: Int = 0
+    var failedRequests: Int = 0
+    var avgResponseTimeMs: Double = 0
 
     var cacheHitRate: Double {
         let total = cacheHits + cacheMisses
-        guard total > 0 else { return 0.0 }
+        guard total > 0 else { return 0 }
         return Double(cacheHits) / Double(total)
     }
 }
 
-// MARK: - AI Analysis Engine
+// MARK: - Unified AI Analysis Engine
 
-@Observable @MainActor
-class AIAnalysisEngine {
+@MainActor
+final class AIAnalysisEngine {
     nonisolated(unsafe) static let shared = AIAnalysisEngine()
 
     private let logger = DebugLogger.shared
+    private let grokService = RorkToolkitService.shared
 
-    // MARK: - Queue State
+    private let cacheTTL: TimeInterval = 30 // 30 seconds cache
+    private let maxQueueSize = 1000
+    private let maxConcurrentRequests = 3
 
-    private(set) var pendingCount: Int = 0
-    private(set) var processingCount: Int = 0
-    private(set) var completedCount: Int = 0
-
-    // MARK: - Cache State
-
-    private var cache: [String: CacheEntry] = [:]
-    private(set) var cacheHits: Int = 0
-    private(set) var cacheMisses: Int = 0
-    private let defaultTTL: TimeInterval = 30.0
-    private let maxCacheSize: Int
-
-    // MARK: - Concurrency
-
-    private let maxConcurrentProcessing: Int
-
-    // MARK: - Initialization
+    private var requestQueue: [AIAnalysisRequest] = []
+    private var responseCache: [String: CachedResponse] = [:]
+    private var stats = AIAnalysisStats()
+    private var processingCount = 0
 
     private init() {
-        let profile = DeviceCapability.performanceProfile
-        self.maxConcurrentProcessing = max(2, profile.maxConcurrentPairs / 4)
-        self.maxCacheSize = profile.maxConcurrentPairs * 10
-
-        logger.log(
-            "AIAnalysisEngine initialized",
-            category: .system,
-            level: .info,
-            detail: "maxConcurrent=\(maxConcurrentProcessing), maxCache=\(maxCacheSize)"
-        )
+        logger.log("AIAnalysisEngine: initialized with cache TTL=\(Int(cacheTTL))s, maxConcurrent=\(maxConcurrentRequests)", category: .automation, level: .info)
     }
 
-    // MARK: - Submit Single Request
+    // MARK: - Public API
 
-    func submit(_ request: AIAnalysisRequest) async -> AIAnalysisResponse {
-        evictExpiredEntries()
+    func analyze(
+        systemPrompt: String,
+        userPrompt: String,
+        priority: AIRequestPriority = .normal,
+        model: GrokModel = .standard,
+        temperature: Double = 0.3,
+        jsonMode: Bool = false,
+        enableCache: Bool = true
+    ) async -> String? {
+        let cacheKey = enableCache ? generateCacheKey(systemPrompt: systemPrompt, userPrompt: userPrompt, model: model) : nil
 
-        if let cached = lookupCache(for: request) {
-            cacheHits += 1
-            return cached
+        // Check cache first
+        if let cacheKey, let cached = getCachedResponse(for: cacheKey) {
+            stats.cacheHits += 1
+            logger.log("AIAnalysisEngine: cache HIT for request (saved \(Int(Date().timeIntervalSince(cached.cachedAt) * 1000))ms)", category: .evaluation, level: .debug)
+            return cached.response
         }
 
-        cacheMisses += 1
-        pendingCount += 1
-        let response = await process(request)
-        pendingCount = max(0, pendingCount - 1)
-        completedCount += 1
-        storeInCache(response: response, ttl: request.ttl, key: request.cacheKey)
-        return response
-    }
-
-    // MARK: - Submit Batch
-
-    func submitBatch(_ requests: [AIAnalysisRequest]) async -> [AIAnalysisResponse] {
-        guard !requests.isEmpty else { return [] }
-        evictExpiredEntries()
-
-        let sorted = requests.sorted { $0.priority < $1.priority }
-
-        logger.log(
-            "Processing batch of \(sorted.count) requests",
-            category: .system,
-            level: .info,
-            detail: "types=\(Set(sorted.map(\.type.rawValue)).sorted().joined(separator: ", "))"
-        )
-
-        var responses: [AIAnalysisResponse] = []
-        responses.reserveCapacity(sorted.count)
-
-        // Process concurrently up to maxConcurrentProcessing limit
-        var index = 0
-        while index < sorted.count {
-            let batchEnd = min(index + maxConcurrentProcessing, sorted.count)
-            let chunk = Array(sorted[index..<batchEnd])
-
-            let chunkResponses = await withTaskGroup(of: AIAnalysisResponse.self) { group in
-                for request in chunk {
-                    group.addTask { await self.submit(request) }
-                }
-                var results: [AIAnalysisResponse] = []
-                for await result in group {
-                    results.append(result)
-                }
-                return results
-            }
-            responses.append(contentsOf: chunkResponses)
-            index = batchEnd
+        if enableCache {
+            stats.cacheMisses += 1
         }
 
-        logger.log(
-            "Batch complete: \(responses.count) responses",
-            category: .system,
-            level: .success
+        let request = AIAnalysisRequest(
+            systemPrompt: systemPrompt,
+            userPrompt: userPrompt,
+            priority: priority,
+            model: model,
+            temperature: temperature,
+            jsonMode: jsonMode,
+            cacheKey: cacheKey
         )
 
-        return responses
+        return await processRequest(request)
     }
 
-    // MARK: - Cache Management
+    func analyzeFast(systemPrompt: String, userPrompt: String, enableCache: Bool = true) async -> String? {
+        await analyze(
+            systemPrompt: systemPrompt,
+            userPrompt: userPrompt,
+            priority: .normal,
+            model: .mini,
+            temperature: 0.1,
+            jsonMode: false,
+            enableCache: enableCache
+        )
+    }
+
+    func analyzeCritical(systemPrompt: String, userPrompt: String) async -> String? {
+        await analyze(
+            systemPrompt: systemPrompt,
+            userPrompt: userPrompt,
+            priority: .critical,
+            model: .standard,
+            enableCache: false
+        )
+    }
+
+    func getStats() -> AIAnalysisStats {
+        var current = stats
+        current.queuedRequests = requestQueue.count
+        current.processingRequests = processingCount
+        return current
+    }
 
     func clearCache() {
-        let previousSize = cache.count
-        cache.removeAll()
-        logger.log("Cache cleared (\(previousSize) entries removed)", category: .system, level: .warning)
+        responseCache.removeAll()
+        logger.log("AIAnalysisEngine: cache cleared (\(stats.cacheHits) hits, \(stats.cacheMisses) misses)", category: .automation, level: .info)
+        stats.cacheHits = 0
+        stats.cacheMisses = 0
     }
 
-    func resetStatistics() {
-        cacheHits = 0
-        cacheMisses = 0
-        completedCount = 0
-        logger.log("Statistics reset", category: .system, level: .warning)
+    func resetStats() {
+        stats = AIAnalysisStats()
+        logger.log("AIAnalysisEngine: stats reset", category: .automation, level: .info)
     }
 
-    // MARK: - Queue Statistics
+    // MARK: - Private Implementation
 
-    var statistics: AIQueueStatistics {
-        AIQueueStatistics(
-            pendingCount: pendingCount,
-            processingCount: processingCount,
-            completedCount: completedCount,
-            cacheHits: cacheHits,
-            cacheMisses: cacheMisses,
-            cacheSize: cache.count
+    private func processRequest(_ request: AIAnalysisRequest) async -> String? {
+        stats.totalRequests += 1
+
+        // Check if we should queue or process immediately
+        if processingCount >= maxConcurrentRequests {
+            if requestQueue.count < maxQueueSize {
+                requestQueue.append(request)
+                requestQueue.sort { $0.priority < $1.priority }
+                logger.log("AIAnalysisEngine: queued request \(request.id.uuidString.prefix(8)) (priority: \(request.priority), queue size: \(requestQueue.count))", category: .evaluation, level: .debug)
+
+                // Wait for queue to process
+                while requestQueue.contains(where: { $0.id == request.id }) {
+                    try? await Task.sleep(for: .milliseconds(100))
+                }
+
+                // Check cache again after waiting (in case another request cached it)
+                if let cacheKey = request.cacheKey, let cached = getCachedResponse(for: cacheKey) {
+                    return cached.response
+                }
+            } else {
+                logger.log("AIAnalysisEngine: queue full, rejecting request", category: .evaluation, level: .warning)
+                stats.failedRequests += 1
+                return nil
+            }
+        }
+
+        return await executeRequest(request)
+    }
+
+    private func executeRequest(_ request: AIAnalysisRequest) async -> String? {
+        processingCount += 1
+        defer { processingCount -= 1 }
+
+        let start = Date()
+
+        let response = await grokService.generateText(
+            systemPrompt: request.systemPrompt,
+            userPrompt: request.userPrompt,
+            model: request.model,
+            jsonMode: request.jsonMode,
+            temperature: request.temperature
         )
+
+        let duration = Date().timeIntervalSince(start) * 1000 // ms
+
+        if let response {
+            // Update average response time
+            let totalCompleted = Double(stats.completedRequests)
+            stats.avgResponseTimeMs = (stats.avgResponseTimeMs * totalCompleted + duration) / (totalCompleted + 1)
+            stats.completedRequests += 1
+
+            // Cache the response if cache key provided
+            if let cacheKey = request.cacheKey {
+                cacheResponse(response, for: cacheKey)
+            }
+
+            logger.log("AIAnalysisEngine: completed request in \(Int(duration))ms (model: \(request.model.rawValue))", category: .evaluation, level: .debug)
+
+            // Process next queued request if any
+            Task {
+                await processNextQueuedRequest()
+            }
+
+            return response
+        } else {
+            stats.failedRequests += 1
+            logger.log("AIAnalysisEngine: request failed after \(Int(duration))ms", category: .evaluation, level: .warning)
+
+            // Process next queued request even on failure
+            Task {
+                await processNextQueuedRequest()
+            }
+
+            return nil
+        }
     }
 
-    // MARK: - Diagnostic Summary
+    private func processNextQueuedRequest() async {
+        guard !requestQueue.isEmpty, processingCount < maxConcurrentRequests else { return }
 
-    var diagnosticSummary: String {
-        let s = statistics
-        return """
-        AIAnalysisEngine Diagnostics
-        ─────────────────────────────
-        Queue: \(s.pendingCount) pending, \(s.processingCount) processing, \(s.completedCount) completed
-        Cache: \(s.cacheSize)/\(maxCacheSize) entries, \
-        hit rate \(String(format: "%.1f%%", s.cacheHitRate * 100)) \
-        (\(s.cacheHits) hits, \(s.cacheMisses) misses)
-        Concurrency: max \(maxConcurrentProcessing) concurrent tasks
-        """
+        let request = requestQueue.removeFirst()
+        logger.log("AIAnalysisEngine: processing queued request \(request.id.uuidString.prefix(8)) (waited \(Int(Date().timeIntervalSince(request.timestamp) * 1000))ms)", category: .evaluation, level: .debug)
+
+        _ = await executeRequest(request)
     }
 
-    // MARK: - Private: Cache Lookup
+    private func generateCacheKey(systemPrompt: String, userPrompt: String, model: GrokModel) -> String {
+        let combined = "\(model.rawValue)|\(systemPrompt)|\(userPrompt)"
+        return String(combined.hashValue)
+    }
 
-    private func lookupCache(for request: AIAnalysisRequest) -> AIAnalysisResponse? {
-        guard let entry = cache[request.cacheKey], !entry.isExpired else {
+    private func getCachedResponse(for key: String) -> CachedResponse? {
+        // Clean expired entries first
+        let now = Date()
+        responseCache = responseCache.filter { $0.value.expiresAt > now }
+
+        guard let cached = responseCache[key] else { return nil }
+        guard cached.expiresAt > now else {
+            responseCache.removeValue(forKey: key)
             return nil
         }
 
-        let cachedResponse = AIAnalysisResponse(
-            requestId: request.id,
-            type: entry.response.type,
-            result: entry.response.result,
-            confidence: entry.response.confidence,
-            reasoning: entry.response.reasoning,
-            timestamp: Date(),
-            cached: true
-        )
-        return cachedResponse
+        return cached
     }
 
-    private func storeInCache(response: AIAnalysisResponse, ttl: TimeInterval, key: String) {
-        if cache.count >= maxCacheSize {
-            evictOldestEntry()
-        }
-
-        let entry = CacheEntry(
+    private func cacheResponse(_ response: String, for key: String) {
+        let now = Date()
+        let cached = CachedResponse(
             response: response,
-            expiresAt: Date().addingTimeInterval(ttl)
+            cachedAt: now,
+            expiresAt: now.addingTimeInterval(cacheTTL)
         )
-        cache[key] = entry
-    }
+        responseCache[key] = cached
 
-    private func evictExpiredEntries() {
-        let expiredKeys = cache.filter { $0.value.isExpired }.map(\.key)
-        for key in expiredKeys {
-            cache.removeValue(forKey: key)
+        // Limit cache size
+        if responseCache.count > 200 {
+            let sorted = responseCache.sorted { $0.value.expiresAt < $1.value.expiresAt }
+            for (key, _) in sorted.prefix(50) {
+                responseCache.removeValue(forKey: key)
+            }
         }
-        if !expiredKeys.isEmpty {
-            logger.log("Evicted \(expiredKeys.count) expired cache entries", category: .system, level: .info)
-        }
-    }
-
-    private func evictOldestEntry() {
-        guard let oldest = cache.min(by: { $0.value.expiresAt < $1.value.expiresAt }) else {
-            return
-        }
-        cache.removeValue(forKey: oldest.key)
-    }
-
-    // MARK: - Private: Request Processing
-
-    private func process(_ request: AIAnalysisRequest) async -> AIAnalysisResponse {
-        processingCount += 1
-        let startTime = CFAbsoluteTimeGetCurrent()
-
-        let (result, confidence, reasoning) = analyze(request)
-
-        let durationMs = Int((CFAbsoluteTimeGetCurrent() - startTime) * 1000)
-        processingCount = max(0, processingCount - 1)
-
-        logger.log(
-            "Processed \(request.type.rawValue)",
-            category: .system,
-            level: .success,
-            durationMs: durationMs
-        )
-
-        return AIAnalysisResponse(
-            requestId: request.id,
-            type: request.type,
-            result: result,
-            confidence: confidence,
-            reasoning: reasoning,
-            timestamp: Date(),
-            cached: false
-        )
-    }
-
-    // Stub handler — routes to real AI service handlers in future phases
-    private func analyze(_ request: AIAnalysisRequest) -> (result: String, confidence: Double, reasoning: String) {
-        let context = request.payload["context"] ?? "default"
-
-        let (action, confidence): (String, Double) = switch request.type {
-        case .antiDetection:        ("adapt_strategy", 0.85)
-        case .automation:           ("orchestrate", 0.90)
-        case .batchInsight:         ("tune_batch", 0.80)
-        case .challengeSolving:     ("solve_challenge", 0.75)
-        case .checkpointVerification: ("verify_checkpoint", 0.88)
-        case .confidenceAnalysis:   ("analyze_confidence", 0.82)
-        case .credentialPriority:   ("prioritize_credentials", 0.87)
-        case .credentialTriage:     ("triage_credentials", 0.83)
-        case .customTools:          ("coordinate_tools", 0.78)
-        case .fingerprintTuning:    ("tune_fingerprint", 0.86)
-        case .loginURLOptimization: ("optimize_url", 0.84)
-        case .batchPreOptimization: ("pre_optimize_batch", 0.81)
-        case .proxyStrategy:        ("select_proxy", 0.79)
-        case .interactionGraph:     ("analyze_graph", 0.76)
-        case .runHealth:            ("assess_health", 0.89)
-        case .sessionHealth:        ("monitor_session", 0.88)
-        case .timingOptimization:   ("optimize_timing", 0.83)
-        }
-
-        let reasoning = "\(request.type.rawValue) analysis completed for context: \(context)"
-        return (action, confidence, reasoning)
     }
 }

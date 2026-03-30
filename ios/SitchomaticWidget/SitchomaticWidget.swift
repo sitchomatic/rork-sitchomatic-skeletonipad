@@ -1,134 +1,186 @@
 import WidgetKit
 import SwiftUI
 
-// MARK: - Timeline Entry
+// MARK: - Batch Progress Entry
 
 nonisolated struct BatchProgressEntry: TimelineEntry {
     let date: Date
     let isRunning: Bool
-    let isPaused: Bool
+    let status: String
     let successCount: Int
-    let failCount: Int
     let totalCount: Int
     let pairCount: Int
-    let throughputPerMinute: Double
+    let throughputPerMin: Int
     let eta: String
 
-    static var placeholder: BatchProgressEntry {
-        BatchProgressEntry(
-            date: .now, isRunning: true, isPaused: false,
-            successCount: 42, failCount: 3, totalCount: 100,
-            pairCount: 45, throughputPerMinute: 12.5, eta: "4:30"
-        )
-    }
-
-    static var idle: BatchProgressEntry {
-        BatchProgressEntry(
-            date: .now, isRunning: false, isPaused: false,
-            successCount: 0, failCount: 0, totalCount: 0,
-            pairCount: 0, throughputPerMinute: 0, eta: "--"
-        )
-    }
-
-    var completedCount: Int { successCount + failCount }
-    var progress: Double { totalCount > 0 ? Double(completedCount) / Double(totalCount) : 0 }
+    static let placeholder = BatchProgressEntry(
+        date: .now,
+        isRunning: false,
+        status: "Idle",
+        successCount: 0,
+        totalCount: 0,
+        pairCount: 0,
+        throughputPerMin: 0,
+        eta: "--:--"
+    )
 }
 
 // MARK: - Provider
 
 nonisolated struct BatchProgressProvider: TimelineProvider {
-    private let defaults = UserDefaults(suiteName: "group.com.sitchomatic.shared")
-
-    func placeholder(in context: Context) -> BatchProgressEntry { .placeholder }
+    func placeholder(in context: Context) -> BatchProgressEntry {
+        .placeholder
+    }
 
     func getSnapshot(in context: Context, completion: @escaping (BatchProgressEntry) -> Void) {
-        completion(context.isPreview ? .placeholder : readEntry())
+        completion(.placeholder)
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<BatchProgressEntry>) -> Void) {
-        let entry = readEntry()
-        let refreshDate = Calendar.current.date(byAdding: .second, value: entry.isRunning ? 15 : 60, to: .now)!
-        completion(Timeline(entries: [entry], policy: .after(refreshDate)))
-    }
-
-    private func readEntry() -> BatchProgressEntry {
-        guard let d = defaults else { return .idle }
-        return BatchProgressEntry(
+        // In a real implementation, this would read from shared UserDefaults or App Group
+        let entry = BatchProgressEntry(
             date: .now,
-            isRunning: d.bool(forKey: "widget_isRunning"),
-            isPaused: d.bool(forKey: "widget_isPaused"),
-            successCount: d.integer(forKey: "widget_successCount"),
-            failCount: d.integer(forKey: "widget_failureCount"),
-            totalCount: d.integer(forKey: "widget_totalCount"),
-            pairCount: d.integer(forKey: "widget_pairCount"),
-            throughputPerMinute: d.double(forKey: "widget_throughputPerMinute"),
-            eta: d.string(forKey: "widget_eta") ?? "--"
+            isRunning: false,
+            status: "Ready",
+            successCount: 0,
+            totalCount: 0,
+            pairCount: 0,
+            throughputPerMin: 0,
+            eta: "--:--"
         )
+
+        let timeline = Timeline(entries: [entry], policy: .after(.now.addingTimeInterval(60)))
+        completion(timeline)
     }
 }
 
 // MARK: - Widget Views
 
-struct SmallWidgetView: View {
-    let entry: BatchProgressEntry
+struct BatchProgressWidgetView: View {
+    var entry: BatchProgressEntry
+    @Environment(\.widgetFamily) var family
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        switch family {
+        case .systemSmall:
+            smallView
+        case .systemMedium:
+            mediumView
+        case .systemLarge:
+            largeView
+        default:
+            smallView
+        }
+    }
+
+    private var smallView: some View {
+        VStack(spacing: 8) {
             HStack {
-                Image(systemName: entry.isRunning ? (entry.isPaused ? "pause.circle.fill" : "bolt.circle.fill") : "moon.circle.fill")
-                    .foregroundStyle(entry.isRunning ? (entry.isPaused ? .orange : .green) : .gray)
-                    .font(.system(size: 16, weight: .bold))
-                Spacer()
-                Text(entry.isRunning ? (entry.isPaused ? "PAUSED" : "RUNNING") : "IDLE")
-                    .font(.system(size: 8, weight: .heavy, design: .monospaced))
-                    .foregroundStyle(entry.isRunning ? (entry.isPaused ? .orange : .green) : .gray)
+                Image(systemName: entry.isRunning ? "play.circle.fill" : "pause.circle.fill")
+                    .foregroundStyle(entry.isRunning ? .green : .gray)
+                Text(entry.status)
+                    .font(.caption.bold())
+                    .foregroundStyle(.secondary)
             }
-            Spacer()
+
             Text("\(entry.successCount)")
-                .font(.system(size: 32, weight: .black, design: .monospaced))
-                .foregroundStyle(.green)
-            Text("SUCCESS")
-                .font(.system(size: 9, weight: .heavy, design: .monospaced))
-                .foregroundStyle(.white.opacity(0.4))
-            if entry.failCount > 0 {
-                Text("\(entry.failCount) fail")
-                    .font(.system(size: 10, weight: .bold, design: .monospaced))
-                    .foregroundStyle(.red.opacity(0.8))
+                .font(.system(size: 36, weight: .bold, design: .rounded))
+                .foregroundStyle(.primary)
+
+            Text("Completed")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private var mediumView: some View {
+        HStack(spacing: 16) {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 6) {
+                    Circle()
+                        .fill(entry.isRunning ? .green : .gray)
+                        .frame(width: 8, height: 8)
+                    Text(entry.status)
+                        .font(.caption.bold())
+                }
+
+                Text("\(entry.successCount)/\(entry.totalCount)")
+                    .font(.system(size: 28, weight: .bold, design: .rounded))
+
+                Text("Completed")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            VStack(alignment: .trailing, spacing: 8) {
+                HStack(spacing: 4) {
+                    Text("\(entry.pairCount)")
+                        .font(.system(size: 20, weight: .bold, design: .rounded))
+                    Text("pairs")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+
+                HStack(spacing: 4) {
+                    Text("\(entry.throughputPerMin)")
+                        .font(.system(size: 16, weight: .semibold, design: .rounded))
+                    Text("/min")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+
+                Text("ETA: \(entry.eta)")
+                    .font(.caption2.monospacedDigit())
+                    .foregroundStyle(.secondary)
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding()
+    }
+
+    private var largeView: some View {
+        VStack(spacing: 16) {
+            HStack {
+                HStack(spacing: 8) {
+                    Circle()
+                        .fill(entry.isRunning ? .green : .gray)
+                        .frame(width: 12, height: 12)
+                    Text(entry.status)
+                        .font(.headline)
+                }
+                Spacer()
+                Text("Sitchomatic")
+                    .font(.caption.bold())
+                    .foregroundStyle(.secondary)
+            }
+
+            Divider()
+
+            HStack(spacing: 24) {
+                StatBox(title: "Completed", value: "\(entry.successCount)/\(entry.totalCount)")
+                StatBox(title: "Active Pairs", value: "\(entry.pairCount)")
+            }
+
+            HStack(spacing: 24) {
+                StatBox(title: "Throughput", value: "\(entry.throughputPerMin)/min")
+                StatBox(title: "ETA", value: entry.eta)
+            }
+
+            if entry.isRunning {
+                let progress = entry.totalCount > 0 ? Double(entry.successCount) / Double(entry.totalCount) : 0
+                ProgressView(value: progress)
+                    .tint(.green)
+            }
+        }
+        .padding()
     }
 }
 
-struct MediumWidgetView: View {
-    let entry: BatchProgressEntry
-    var body: some View {
-        VStack(spacing: 8) {
-            HStack {
-                Image(systemName: entry.isRunning ? "bolt.circle.fill" : "moon.circle.fill")
-                    .foregroundStyle(entry.isRunning ? (entry.isPaused ? .orange : .green) : .gray)
-                Text(entry.isRunning ? (entry.isPaused ? "PAUSED" : "RUNNING") : "IDLE")
-                    .font(.system(size: 10, weight: .heavy, design: .monospaced))
-                    .foregroundStyle(entry.isRunning ? (entry.isPaused ? .orange : .green) : .gray)
-                Spacer()
-                if entry.isRunning {
-                    Text("ETA \(entry.eta)")
-                        .font(.system(size: 10, weight: .bold, design: .monospaced))
-                        .foregroundStyle(.white.opacity(0.5))
-                }
-            }
-            ProgressView(value: entry.progress)
-                .tint(entry.isPaused ? .orange : .green)
-            HStack {
-                metricView(value: "\(entry.successCount)", label: "OK", color: .green)
-                Spacer()
-                metricView(value: "\(entry.failCount)", label: "FAIL", color: .red)
-                Spacer()
-                metricView(value: "\(entry.pairCount)", label: "PAIRS", color: .cyan)
-                Spacer()
-                metricView(value: String(format: "%.1f", entry.throughputPerMinute), label: "/MIN", color: .white.opacity(0.7))
-            }
-        }
-    }
+struct StatBox: View {
+    let title: String
+    let value: String
 
     private func metricView(value: String, label: String, color: Color) -> some View {
         VStack(spacing: 1) {
@@ -189,17 +241,11 @@ struct SitchomaticWidget: Widget {
 
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: kind, provider: BatchProgressProvider()) { entry in
-            Group {
-                switch WidgetFamily.current(entry) {
-                case .systemSmall: SmallWidgetView(entry: entry)
-                case .systemMedium: MediumWidgetView(entry: entry)
-                default: LargeWidgetView(entry: entry)
-                }
-            }
-            .containerBackground(.black.opacity(0.92), for: .widget)
+            BatchProgressWidgetView(entry: entry)
+                .containerBackground(.fill.tertiary, for: .widget)
         }
-        .configurationDisplayName("Sitchomatic APEX Widget")
-        .description("Batch progress at a glance.")
+        .configurationDisplayName("Sitchomatic Batch Progress")
+        .description("Track your automation batch progress in real-time")
         .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
     }
 }
