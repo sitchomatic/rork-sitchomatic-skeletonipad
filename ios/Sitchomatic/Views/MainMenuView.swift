@@ -49,6 +49,10 @@ struct MainMenuView: View {
                     ppsrZone(geo: geo)
                         .frame(height: (geo.size.height - geo.safeAreaInsets.top - geo.safeAreaInsets.bottom) * 0.15)
 
+                    advancedToolsGrid()
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 10)
+
                     HStack(spacing: 0) {
                         settingsAndTestingZone(geo: geo)
                         connectionModeZone(geo: geo)
@@ -338,6 +342,148 @@ struct MainMenuView: View {
         .offset(y: animateIn ? 0 : 30)
         .allowsHitTesting(canEnterModes)
         .sensoryFeedback(.impact(weight: .medium), trigger: activeMode == .ppsr)
+    }
+
+    private func advancedToolsGrid() -> some View {
+        let columns = [GridItem(.adaptive(minimum: 120), spacing: 10)]
+
+        return VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 8) {
+                Image(systemName: "square.grid.3x3.fill")
+                    .foregroundStyle(.white.opacity(0.65))
+                    .font(.system(size: 14, weight: .semibold))
+                Text("ADVANCED TOOLS")
+                    .font(.system(size: 12, weight: .heavy, design: .monospaced))
+                    .foregroundStyle(.white.opacity(0.8))
+                Spacer()
+                if canEnterModes {
+                    Text("Full access")
+                        .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                        .foregroundStyle(.white.opacity(0.45))
+                } else {
+                    Text("Select profile first")
+                        .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                        .foregroundStyle(.yellow)
+                }
+            }
+
+            LazyVGrid(columns: columns, spacing: 10) {
+                advancedToolButton(
+                    title: "Live Dashboard",
+                    subtitle: "40-pair telemetry",
+                    icon: "gauge.with.dots.needle.67percent",
+                    color: .teal,
+                    mode: .liveBatchDashboard
+                )
+                advancedToolButton(
+                    title: "Session Monitor",
+                    subtitle: "Screenshots + logs",
+                    icon: "rectangle.split.2x1",
+                    color: .purple,
+                    mode: .sessionMonitor
+                )
+                advancedToolButton(
+                    title: "Super Test",
+                    subtitle: "Full stack audit",
+                    icon: "bolt.shield.fill",
+                    color: .orange,
+                    mode: .superTest
+                )
+                advancedToolButton(
+                    title: "IP Score Test",
+                    subtitle: "20× concurrent",
+                    icon: "network.badge.shield.half.filled",
+                    color: .indigo,
+                    mode: .ipScoreTest
+                )
+                advancedToolButton(
+                    title: "Proxy Manager",
+                    subtitle: "Pools & health",
+                    icon: "arrow.triangle.2.circlepath",
+                    color: .blue,
+                    mode: .proxyManager
+                )
+                advancedToolButton(
+                    title: "Debug Log",
+                    subtitle: "Live console",
+                    icon: "doc.text.magnifyingglass",
+                    color: .pink,
+                    mode: .debugLog
+                )
+                advancedToolButton(
+                    title: "Flow Recorder",
+                    subtitle: "Record & replay",
+                    icon: "record.circle",
+                    color: .red,
+                    mode: .flowRecorder
+                )
+                advancedToolButton(
+                    title: "Nord Config",
+                    subtitle: "WireGuard / OVPN",
+                    icon: "shield.checkered",
+                    color: Color(red: 0.0, green: 0.78, blue: 1.0),
+                    mode: .nordConfig
+                )
+                advancedToolButton(
+                    title: "Vault",
+                    subtitle: "Persistent files",
+                    icon: "externaldrive.fill",
+                    color: .mint,
+                    mode: .vault
+                )
+            }
+        }
+        .padding(14)
+        .background(Color.white.opacity(0.06))
+        .clipShape(.rect(cornerRadius: 18))
+        .overlay(
+            RoundedRectangle(cornerRadius: 18)
+                .strokeBorder(.white.opacity(0.08), lineWidth: 1)
+        )
+        .opacity(animateIn ? (canEnterModes ? 1 : 0.35) : 0)
+        .offset(y: animateIn ? 0 : 20)
+    }
+
+    private func advancedToolButton(title: String, subtitle: String, icon: String, color: Color, mode: ActiveAppMode) -> some View {
+        Button {
+            guard canEnterModes else { return }
+            withAnimation(.spring(duration: 0.35, bounce: 0.15)) {
+                activeMode = mode
+            }
+        } label: {
+            HStack(alignment: .top, spacing: 10) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(color.opacity(0.15))
+                        .frame(width: 34, height: 34)
+                    Image(systemName: icon)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(color)
+                }
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(title.uppercased())
+                        .font(.system(size: 10, weight: .black, design: .monospaced))
+                        .foregroundStyle(.white)
+                        .lineLimit(1)
+                    Text(subtitle)
+                        .font(.system(size: 9, weight: .semibold, design: .monospaced))
+                        .foregroundStyle(.white.opacity(0.55))
+                        .lineLimit(1)
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 9, weight: .heavy))
+                    .foregroundStyle(.white.opacity(0.3))
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 10)
+            .background(Color.white.opacity(0.04))
+            .clipShape(.rect(cornerRadius: 12))
+        }
+        .buttonStyle(.plain)
+        .allowsHitTesting(canEnterModes)
+        .sensoryFeedback(.selection, trigger: activeMode == mode)
     }
 
     private func settingsAndTestingZone(geo: GeometryProxy) -> some View {
