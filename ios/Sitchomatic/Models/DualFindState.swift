@@ -1,0 +1,255 @@
+import Foundation
+import UIKit
+
+nonisolated enum PasswordSetStatus: String, Codable, Sendable {
+    case queued
+    case active
+    case done
+}
+
+nonisolated struct DualFindPasswordSet: Codable, Sendable, Identifiable {
+    let id: String
+    let index: Int
+    let passwords: [String]
+    var status: PasswordSetStatus
+    var joePasswordIndex: Int
+    var ignPasswordIndex: Int
+
+    init(index: Int, passwords: [String]) {
+        self.id = "set_\(index)"
+        self.index = index
+        self.passwords = passwords
+        self.status = .queued
+        self.joePasswordIndex = 0
+        self.ignPasswordIndex = 0
+    }
+
+    var count: Int { passwords.count }
+
+    var maskedPasswords: [String] {
+        passwords.map { pw in
+            guard pw.count > 2 else { return String(repeating: "•", count: pw.count) }
+            return String(pw.prefix(1)) + String(repeating: "•", count: pw.count - 2) + String(pw.suffix(1))
+        }
+    }
+}
+
+nonisolated struct DualFindResumePoint: Codable, Sendable {
+    let joeEmailIndex: Int
+    let joePasswordIndex: Int
+    let ignEmailIndex: Int
+    let ignPasswordIndex: Int
+    let emails: [String]
+    let passwords: [String]
+    let sessionCount: Int
+    let timestamp: Date
+    let disabledEmails: [String]
+    let foundLogins: [DualFindHit]
+    let joeCompletedTests: Int
+    let ignCompletedTests: Int
+    let allPasswords: [String]
+    let currentSetIndex: Int
+    let passwordSets: [DualFindPasswordSet]
+    let autoAdvanceEnabled: Bool
+
+    init(joeEmailIndex: Int, joePasswordIndex: Int, ignEmailIndex: Int, ignPasswordIndex: Int, emails: [String], passwords: [String], sessionCount: Int, timestamp: Date, disabledEmails: [String], foundLogins: [DualFindHit], joeCompletedTests: Int = 0, ignCompletedTests: Int = 0, allPasswords: [String] = [], currentSetIndex: Int = 0, passwordSets: [DualFindPasswordSet] = [], autoAdvanceEnabled: Bool = true) {
+        self.joeEmailIndex = joeEmailIndex
+        self.joePasswordIndex = joePasswordIndex
+        self.ignEmailIndex = ignEmailIndex
+        self.ignPasswordIndex = ignPasswordIndex
+        self.emails = emails
+        self.passwords = passwords
+        self.sessionCount = sessionCount
+        self.timestamp = timestamp
+        self.disabledEmails = disabledEmails
+        self.foundLogins = foundLogins
+        self.joeCompletedTests = joeCompletedTests
+        self.ignCompletedTests = ignCompletedTests
+        self.allPasswords = allPasswords
+        self.currentSetIndex = currentSetIndex
+        self.passwordSets = passwordSets
+        self.autoAdvanceEnabled = autoAdvanceEnabled
+    }
+}
+
+nonisolated struct DualFindHit: Codable, Sendable, Identifiable {
+    let id: String
+    let email: String
+    let password: String
+    let platform: String
+    let timestamp: Date
+
+    init(email: String, password: String, platform: String) {
+        self.id = UUID().uuidString
+        self.email = email
+        self.password = password
+        self.platform = platform
+        self.timestamp = Date()
+    }
+
+    var copyText: String {
+        "\(email):\(password)"
+    }
+}
+
+nonisolated struct DualFindSessionInfo: Identifiable, Sendable {
+    let id: String
+    let index: Int
+    let platform: String
+    var currentEmail: String
+    var status: String
+    var isActive: Bool
+
+    init(index: Int, platform: String) {
+        self.id = "\(platform)_\(index)"
+        self.index = index
+        self.platform = platform
+        self.currentEmail = ""
+        self.status = "Idle"
+        self.isActive = false
+    }
+}
+
+nonisolated enum DualFindTestOutcome: Sendable {
+    case success
+    case disabled
+    case transient
+    case fingerprintDetected
+    case noAccount
+    case unsure
+}
+
+nonisolated enum DualFindInterventionAction: String, Codable, Sendable, CaseIterable, Identifiable {
+    case markSuccess = "Mark as Success"
+    case markNoAccount = "Mark as No Account"
+    case markDisabled = "Mark as Disabled"
+    case restartWithNewIP = "Restart with New IP"
+    case pressSubmitAgain = "Press Submit 3 More Times"
+    case disableURL = "Disable This URL"
+    case disableViewport = "Disable Viewport"
+    case skipAndContinue = "Skip & Continue"
+
+    nonisolated var id: String { rawValue }
+
+    var icon: String {
+        switch self {
+        case .markSuccess: "checkmark.circle.fill"
+        case .markNoAccount: "xmark.circle.fill"
+        case .markDisabled: "person.slash.fill"
+        case .restartWithNewIP: "arrow.triangle.2.circlepath"
+        case .pressSubmitAgain: "hand.tap.fill"
+        case .disableURL: "link.badge.plus"
+        case .disableViewport: "rectangle.slash"
+        case .skipAndContinue: "forward.fill"
+        }
+    }
+
+    var colorName: String {
+        switch self {
+        case .markSuccess: "green"
+        case .markNoAccount: "red"
+        case .markDisabled: "orange"
+        case .restartWithNewIP: "blue"
+        case .pressSubmitAgain: "purple"
+        case .disableURL: "pink"
+        case .disableViewport: "indigo"
+        case .skipAndContinue: "gray"
+        }
+    }
+
+    var isResultCorrection: Bool {
+        switch self {
+        case .markSuccess, .markNoAccount, .markDisabled: true
+        default: false
+        }
+    }
+
+    var correctedOutcome: DualFindTestOutcome? {
+        switch self {
+        case .markSuccess: .success
+        case .markNoAccount: .noAccount
+        case .markDisabled: .disabled
+        default: nil
+        }
+    }
+}
+
+nonisolated struct DualFindInterventionRequest: Identifiable, Sendable {
+    let id: String = UUID().uuidString
+    let sessionLabel: String
+    let email: String
+    let password: String
+    let platform: String
+    let pageContent: String
+    let currentURL: String
+    let timestamp: Date = Date()
+    let sessionIndex: Int
+    let site: LoginTargetSite
+    let passwordIndex: Int
+}
+
+nonisolated enum DualFindScreenshotCount: Int, CaseIterable, Sendable {
+    case zero = 0
+    case one = 1
+    case three = 3
+    case five = 5
+
+    var label: String {
+        switch self {
+        case .zero: "Off"
+        case .one: "1"
+        case .three: "3"
+        case .five: "5"
+        }
+    }
+}
+
+nonisolated struct DualFindLiveScreenshot: Identifiable, Sendable {
+    let id: String
+    let email: String
+    let password: String
+    let platform: String
+    let url: String
+    let image: UIImage
+    let step: String
+    let timestamp: Date
+    let outcome: String
+
+    init(email: String, password: String, platform: String, url: String, image: UIImage, step: String, outcome: String = "") {
+        self.id = UUID().uuidString
+        self.email = email
+        self.password = password
+        self.platform = platform
+        self.url = url
+        self.image = image
+        self.step = step
+        self.timestamp = Date()
+        self.outcome = outcome
+    }
+
+    var formattedTime: String {
+        DateFormatters.timeOnly.string(from: timestamp)
+    }
+}
+
+nonisolated enum DualFindSessionCount: Int, CaseIterable, Sendable {
+    case one = 1
+    case two = 2
+    case three = 3
+    case four = 4
+    case five = 5
+    case six = 6
+    case seven = 7
+
+    var label: String {
+        switch self {
+        case .three: "6 Sessions (3+3) — V5.2 Optimized"
+        default: "\(rawValue * 2) Sessions (\(rawValue)+\(rawValue))"
+        }
+    }
+
+    var perSite: Int { rawValue }
+
+    static let v52Default: DualFindSessionCount = .three
+}
+
