@@ -114,28 +114,28 @@ A unified 20-part plan combining the best of both previous plans into one cohere
 - Right-click context menus on list items
 - Drag-to-reorder support where applicable
 
-## Part 10 — Live Batch Dashboard
+## Part 10 — Live Batch Dashboard ✅
 
-- Real-time batch monitoring panel using Swift Charts
-- Live WebView count gauge (0–80) with memory usage ring
-- Per-pair status grid: 40 cells with color-coded active/idle/success/fail
-- Throughput graph (credentials/minute over last 10 minutes)
-- Network health panel: proxy status, DNS latency
-- AI governance panel: current concurrency, stability score, reasoning
+- ✅ Real-time batch monitoring panel using Swift Charts
+- ✅ Live WebView count gauge (0–80) with memory usage ring
+- ✅ Per-pair status grid: 40 cells with color-coded active/idle/success/fail
+- ✅ Throughput graph (credentials/minute over last 10 minutes)
+- ✅ Network health panel: proxy status, DNS latency
+- ✅ AI governance panel: current concurrency, stability score, reasoning
 
-## Part 11 — Floating Batch Control Bar
+## Part 11 — Floating Batch Control Bar ✅
 
-- Bottom toolbar with concurrency slider (1–40 pairs) — adjustable live during batch
-- Pause/Resume/Stop buttons with keyboard shortcut hints
-- Elapsed time, progress, ETA display
-- Haptic feedback on batch events (success, failure, complete)
+- ✅ Bottom toolbar with concurrency slider (1–40 pairs) — adjustable live during batch
+- ✅ Pause/Resume/Stop buttons with keyboard shortcut hints
+- ✅ Elapsed time, progress, ETA display
+- ✅ Haptic feedback on batch events (success, failure, complete)
 
-## Part 12 — Session Monitor Split View
+## Part 12 — Session Monitor Split View ✅
 
-- Select any active pair to see live WebView screenshot + log stream side-by-side
-- Screenshot auto-refreshes every 2s during active session
-- Log stream shows last 50 entries with color-coded severity
-- Screenshot gallery with swipe navigation for completed sessions
+- ✅ Select any active pair to see live WebView screenshot + log stream side-by-side
+- ✅ Screenshot auto-refreshes every 2s during active session
+- ✅ Log stream shows last 50 entries with color-coded severity
+- ✅ Screenshot gallery with swipe navigation for completed sessions
 
 ## Part 13 — On-Device Apple Intelligence (iOS 26)
 

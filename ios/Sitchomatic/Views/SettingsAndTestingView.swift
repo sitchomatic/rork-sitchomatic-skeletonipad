@@ -20,6 +20,28 @@ struct SettingsAndTestingView: View {
     private var testingToolsSection: some View {
         Section {
             NavigationLink {
+                LiveBatchDashboardView()
+            } label: {
+                settingsRow(
+                    icon: "gauge.with.dots.needle.50percent",
+                    title: "Live Batch Dashboard",
+                    subtitle: "Real-time WebView, throughput & AI monitoring",
+                    color: .teal
+                )
+            }
+
+            NavigationLink {
+                SessionMonitorSplitView()
+            } label: {
+                settingsRow(
+                    icon: "rectangle.split.2x1",
+                    title: "Session Monitor",
+                    subtitle: "Live screenshot + log stream split view",
+                    color: .purple
+                )
+            }
+
+            NavigationLink {
                 SuperTestView()
             } label: {
                 settingsRow(
