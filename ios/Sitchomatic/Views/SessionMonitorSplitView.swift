@@ -315,7 +315,7 @@ struct SessionMonitorSplitView: View {
                 ScrollViewReader { proxy in
                     ScrollView {
                         LazyVStack(alignment: .leading, spacing: 2) {
-                            ForEach(Array(sessionLogs)) { entry in
+                            ForEach(sessionLogs, id: \.id) { entry in
                                 logEntryRow(entry)
                                     .id(entry.id)
                             }
