@@ -21,6 +21,8 @@ nonisolated struct BatchResult: Sendable {
 class PPSRAutomationViewModel {
     nonisolated(unsafe) static let shared = PPSRAutomationViewModel()
 
+    let batchState = BatchStateManager.shared
+
     var cards: [PPSRCard] = []
     var checks: [PPSRCheck] = []
     var testEmail: String = "dev@test.ppsr.gov.au"

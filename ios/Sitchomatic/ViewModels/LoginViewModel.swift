@@ -7,6 +7,8 @@ import SwiftUI
 class LoginViewModel {
     nonisolated(unsafe) static let shared = LoginViewModel()
 
+    let batchState = BatchStateManager.shared
+
     var credentials: [LoginCredential] = []
     var attempts: [LoginAttempt] = []
     var isRunning: Bool = false
