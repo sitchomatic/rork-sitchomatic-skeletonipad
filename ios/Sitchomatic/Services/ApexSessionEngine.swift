@@ -70,11 +70,265 @@ extension ScreenshotCapableSession {
     }
 }
 
+// MARK: - ApexWebSessionBase (Shared Lifecycle)
+
+/// Base class for all Apex web sessions. Handles WebView creation (via shared ProcessPool),
+/// teardown, page loading, DOM readiness, screenshot capture, fingerprint injection,
+/// and WKNavigationDelegate/WKScriptMessageHandler plumbing.
+///
+/// Subclasses keep domain-specific form filling and URL targeting logic.
+@MainActor
+class ApexWebSessionBase: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
+
+    // MARK: Public Properties
+
+    private(set) var webView: WKWebView?
+    var stealthEnabled: Bool = false
+    var lastNavigationError: String?
+    var lastHTTPStatusCode: Int?
+    var networkConfig: ActiveNetworkConfig = .direct
+    private(set) var stealthProfile: PPSRStealthService.SessionProfile?
+    var onFingerprintLog: (@Sendable (String, PPSRLogEntry.Level) -> Void)?
+
+    // MARK: Internal State
+
+    let sessionId: UUID = UUID()
+    let isolatedDataStore = WKWebsiteDataStore.nonPersistent()
+
+    var pageLoadContinuation: CheckedContinuation<Bool, Never>?
+    var isPageLoaded: Bool = false
+    var loadTimeoutTask: Task<Void, Never>?
+    var isProtectedRouteBlocked: Bool = false
+    let logger = DebugLogger.shared
+
+    // MARK: WebView Lifecycle
+
+    /// Configures and creates a fresh WKWebView using the shared process pool.
+    /// Override `configureAdditionalWebViewSettings(_:)` to add subclass-specific config.
+    func setUpWebView(blockImages: Bool = false, blockImagesScript: WKUserScript? = nil) {
+        if webView != nil {
+            tearDown()
+        }
+
+        let config = WKWebViewConfiguration()
+        config.processPool = WebViewProcessPoolManager.shared.pool()
+        config.websiteDataStore = isolatedDataStore
+        config.preferences.javaScriptCanOpenWindowsAutomatically = true
+        config.defaultWebpagePreferences.allowsContentJavaScript = true
+
+        let contentController = WKUserContentController()
+        let proxy = ApexMessageProxy(target: self)
+        contentController.add(proxy, name: "apexBridge")
+        contentController.addUserScript(ApexConstants.keyboardSuppressionScript)
+
+        if let blockScript = blockImagesScript, blockImages {
+            contentController.addUserScript(blockScript)
+        }
+
+        config.userContentController = contentController
+        configureAdditionalWebViewSettings(config)
+
+        var viewport = CGSize(width: 390, height: 844)
+        if stealthEnabled {
+            let stealth = PPSRStealthService.shared
+            if let profile = stealth.nextProfileSync() {
+                self.stealthProfile = profile
+                viewport = CGSize(width: profile.viewportWidth, height: profile.viewportHeight)
+            }
+        }
+
+        let wv = WKWebView(frame: CGRect(origin: .zero, size: viewport), configuration: config)
+        wv.navigationDelegate = self
+        wv.customUserAgent = stealthProfile?.userAgent ?? "Mozilla/5.0 (iPhone; CPU iPhone OS 26_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Mobile/15E148 Safari/604.1"
+        wv.isOpaque = false
+        wv.backgroundColor = .clear
+        wv.scrollView.contentInsetAdjustmentBehavior = .never
+
+        webView = wv
+        WebViewPool.shared.mount(wv, for: sessionId)
+    }
+
+    /// Override point for subclass-specific WKWebViewConfiguration changes.
+    func configureAdditionalWebViewSettings(_ config: WKWebViewConfiguration) {
+        // Default: no-op. Subclasses can override.
+    }
+
+    /// Tears down the webView, removing all scripts and handlers.
+    func tearDown() {
+        loadTimeoutTask?.cancel()
+        loadTimeoutTask = nil
+
+        if let wv = webView {
+            wv.stopLoading()
+            wv.configuration.websiteDataStore.removeData(
+                ofTypes: WKWebsiteDataStore.allWebsiteDataTypes(),
+                modifiedSince: .distantPast) { }
+            wv.configuration.userContentController.removeAllUserScripts()
+            wv.configuration.userContentController.removeScriptMessageHandler(forName: "apexBridge")
+            wv.navigationDelegate = nil
+        }
+
+        if webView != nil {
+            WebViewPool.shared.unmount(id: sessionId)
+        }
+
+        webView = nil
+        isPageLoaded = false
+        isProtectedRouteBlocked = false
+        lastNavigationError = nil
+        lastHTTPStatusCode = nil
+
+        if let cont = pageLoadContinuation {
+            pageLoadContinuation = nil
+            cont.resume(returning: false)
+        }
+    }
+
+    // MARK: Page Loading
+
+    func loadPage(url: URL, timeout: TimeInterval = 60) async -> Bool {
+        guard let wv = webView else { return false }
+        isPageLoaded = false
+
+        let loaded = await withCheckedContinuation { (continuation: CheckedContinuation<Bool, Never>) in
+            self.pageLoadContinuation = continuation
+            wv.load(URLRequest(url: url))
+
+            self.loadTimeoutTask = Task {
+                try? await Task.sleep(for: .seconds(timeout))
+                guard !Task.isCancelled else { return }
+                if let cont = self.pageLoadContinuation {
+                    self.pageLoadContinuation = nil
+                    cont.resume(returning: false)
+                    self.logger.log("ApexWebSessionBase: page load timed out after \(Int(timeout))s", category: .webView, level: .warning)
+                }
+            }
+        }
+
+        return loaded
+    }
+
+    // MARK: JavaScript Evaluation
+
+    func executeJS(_ js: String) async -> String? {
+        guard let wv = webView else { return nil }
+        do {
+            let result = try await wv.evaluateJavaScript(js)
+            if let str = result as? String { return str }
+            if let num = result as? NSNumber { return num.stringValue }
+            return nil
+        } catch {
+            return nil
+        }
+    }
+
+    // MARK: Screenshot Capture
+
+    func captureScreenshot() async -> UIImage? {
+        guard let wv = webView, wv.bounds.width > 2, wv.bounds.height > 2 else { return nil }
+
+        let config = WKSnapshotConfiguration()
+        let viewport = stealthProfile.map { CGRect(x: 0, y: 0, width: $0.viewportWidth, height: $0.viewportHeight) }
+            ?? CGRect(x: 0, y: 0, width: 390, height: 844)
+        config.rect = viewport
+
+        return try? await wv.takeSnapshot(configuration: config)
+    }
+
+    // MARK: DOM Utilities
+
+    func waitForDOMReady(timeout: TimeInterval = 10) async {
+        let start = Date()
+        while Date().timeIntervalSince(start) < timeout {
+            if let state = await executeJS("document.readyState"), state == "complete" {
+                return
+            }
+            try? await Task.sleep(for: .milliseconds(300))
+        }
+    }
+
+    func injectFingerprint() async {
+        guard stealthEnabled, stealthProfile != nil else { return }
+        let js = PPSRStealthService.shared.fingerprintJS()
+        _ = await executeJS(js)
+    }
+
+    func resolvePageLoad(success: Bool) {
+        if let cont = pageLoadContinuation {
+            pageLoadContinuation = nil
+            cont.resume(returning: success)
+        }
+    }
+
+    func cleanIsolatedDataStore() async {
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            isolatedDataStore.removeData(
+                ofTypes: WKWebsiteDataStore.allWebsiteDataTypes(),
+                modifiedSince: .distantPast
+            ) { continuation.resume() }
+        }
+    }
+
+    // MARK: WKNavigationDelegate
+
+    nonisolated func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        Task { @MainActor in
+            self.isPageLoaded = true
+            self.resolvePageLoad(success: true)
+        }
+    }
+
+    nonisolated func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+        Task { @MainActor in
+            self.lastNavigationError = self.classifyNavigationError(error)
+            self.resolvePageLoad(success: false)
+        }
+    }
+
+    nonisolated func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+        Task { @MainActor in
+            self.lastNavigationError = self.classifyNavigationError(error)
+            self.resolvePageLoad(success: false)
+        }
+    }
+
+    nonisolated func webView(_ webView: WKWebView, decidePolicyFor navigationResponse: WKNavigationResponse,
+                              decisionHandler: @escaping (WKNavigationResponsePolicy) -> Void) {
+        Task { @MainActor in
+            if let httpResponse = navigationResponse.response as? HTTPURLResponse {
+                self.lastHTTPStatusCode = httpResponse.statusCode
+            }
+        }
+        decisionHandler(.allow)
+    }
+
+    // MARK: WKScriptMessageHandler
+
+    nonisolated func userContentController(_ userContentController: WKUserContentController,
+                                            didReceive message: WKScriptMessage) {
+        // Bridge messages forwarded from the HyperFlow content controller.
+    }
+
+    // MARK: Error Classification
+
+    func classifyNavigationError(_ error: Error) -> String {
+        let nsError = error as NSError
+        switch nsError.code {
+        case NSURLErrorTimedOut: return "Timeout"
+        case NSURLErrorNotConnectedToInternet: return "No internet"
+        case NSURLErrorCannotFindHost: return "DNS lookup failed"
+        case NSURLErrorSecureConnectionFailed: return "SSL/TLS error"
+        case NSURLErrorCancelled: return "Cancelled"
+        default: return error.localizedDescription
+        }
+    }
+}
+
 // MARK: - 1. LoginSiteWebSession (Apex Actor-Isolated)
 
 /// Apex-isolated WebKit session for A19 Pro Max.
-/// Creates an isolated WKProcessPool + nonPersistent WKWebsiteDataStore per
-/// instance so that concurrent sessions never share cookies or storage.
+/// Uses shared ProcessPool via WebViewProcessPoolManager + nonPersistent
+/// WKWebsiteDataStore per instance so sessions never share cookies or storage.
 @MainActor
 class LoginSiteWebSession: NSObject {
 
