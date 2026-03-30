@@ -13,7 +13,7 @@ nonisolated struct WGEndpointTestResult: Sendable {
 @Observable
 @MainActor
 class WireGuardTunnelService {
-    static let shared = WireGuardTunnelService()
+    nonisolated(unsafe) static let shared = WireGuardTunnelService()
 
     private let vpnTunnel = VPNTunnelManager.shared
     private let logger = DebugLogger.shared

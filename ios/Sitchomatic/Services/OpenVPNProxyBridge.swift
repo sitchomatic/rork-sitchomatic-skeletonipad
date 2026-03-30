@@ -32,7 +32,7 @@ nonisolated struct OpenVPNBridgeStats: Sendable {
 @Observable
 @MainActor
 class OpenVPNProxyBridge {
-    static let shared = OpenVPNProxyBridge()
+    nonisolated(unsafe) static let shared = OpenVPNProxyBridge()
 
     private(set) var status: OpenVPNBridgeStatus = .stopped
     private(set) var stats: OpenVPNBridgeStats = OpenVPNBridgeStats()

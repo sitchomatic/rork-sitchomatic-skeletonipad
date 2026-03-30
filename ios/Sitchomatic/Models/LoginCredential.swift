@@ -12,6 +12,7 @@ nonisolated enum CredentialStatus: String, Sendable, Codable, CaseIterable {
 }
 
 @Observable
+@MainActor
 class LoginCredential: Identifiable {
     let id: String
     let username: String

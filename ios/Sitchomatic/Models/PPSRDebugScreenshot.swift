@@ -50,6 +50,7 @@ nonisolated enum UserResultOverride: String, Sendable, CaseIterable {
 }
 
 @Observable
+@MainActor
 class PPSRDebugScreenshot: Identifiable {
     let id: String
     let timestamp: Date

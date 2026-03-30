@@ -34,7 +34,7 @@ nonisolated struct AIConfidenceStore: Codable, Sendable {
 
 @MainActor
 class AIConfidenceAnalyzerService {
-    static let shared = AIConfidenceAnalyzerService()
+    nonisolated(unsafe) static let shared = AIConfidenceAnalyzerService()
 
     private let logger = DebugLogger.shared
     private let persistenceKey = "AIConfidenceAnalyzerData"

@@ -5,7 +5,9 @@ import SwiftUI
 @Observable
 @MainActor
 class LoginViewModel {
-    static let shared = LoginViewModel()
+    nonisolated(unsafe) static let shared = LoginViewModel()
+
+    let batchState = BatchStateManager.shared
 
     var credentials: [LoginCredential] = []
     var attempts: [LoginAttempt] = []

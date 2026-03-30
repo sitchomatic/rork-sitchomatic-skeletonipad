@@ -57,7 +57,7 @@ nonisolated struct TriageStore: Codable, Sendable {
 
 @MainActor
 class AICredentialTriageService {
-    static let shared = AICredentialTriageService()
+    nonisolated(unsafe) static let shared = AICredentialTriageService()
 
     private let logger = DebugLogger.shared
     private let credentialPriority = AICredentialPriorityScoringService.shared

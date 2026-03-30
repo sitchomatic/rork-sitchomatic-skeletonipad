@@ -105,6 +105,7 @@ nonisolated enum TestDebugSessionStatus: String, Sendable {
 }
 
 @Observable
+@MainActor
 class TestDebugSession: Identifiable {
     let id: String
     let index: Int

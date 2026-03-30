@@ -47,7 +47,7 @@ public final class HyperFlowExecutor: @unchecked Sendable {
 @Observable
 @MainActor
 public final class WebViewPool {
-    public static let shared = WebViewPool()
+    public nonisolated(unsafe) static let shared = WebViewPool()
     public var activeViews: [UUID: WKWebView] = [:]
 
     private init() {}
@@ -150,17 +150,18 @@ public actor AutomationPairSession {
     let sessionID = UUID()
     let task: PairedTask
 
-    // Crucial: A unique ProcessPool and DataStore for THIS PAIR ONLY.
-    // This provides the strict cookie/storage isolation requested.
-    let isolatedProcessPool = WKProcessPool()
+    // Shared ProcessPool via WebViewProcessPoolManager for memory efficiency.
+    // Each pair keeps its own nonPersistent DataStore for cookie/storage isolation.
+    let isolatedProcessPool: WKProcessPool
     let isolatedDataStore = WKWebsiteDataStore.nonPersistent()
 
     private let allowedDomains: Set<String>
     private let logger = Logger(subsystem: "com.hyperflow.scraper", category: "Session")
 
-    public init(task: PairedTask, allowedDomains: Set<String>) {
+    public init(task: PairedTask, allowedDomains: Set<String>, processPool: WKProcessPool) {
         self.task = task
         self.allowedDomains = allowedDomains
+        self.isolatedProcessPool = processPool
     }
 
     public func execute() async throws {
@@ -462,7 +463,7 @@ public final class HeadlessWebViewWorker: NSObject, WKNavigationDelegate, WKScri
 /// Orchestrates PairedTasks across the engine with WebViewRecycler integration.
 @MainActor
 public final class AutomationOrchestrator {
-    public static let shared = AutomationOrchestrator()
+    public nonisolated(unsafe) static let shared = AutomationOrchestrator()
 
     private let logger = Logger(subsystem: "com.hyperflow.scraper", category: "Orchestrator")
     private let maxConcurrentPairs = DeviceCapability.performanceProfile.maxConcurrentPairs
@@ -486,10 +487,12 @@ public final class AutomationOrchestrator {
             let batch = Array(tasks[batchStart..<batchEnd])
 
             await withTaskGroup(of: Bool.self) { group in
-                for task in batch {
+                for (index, task) in batch.enumerated() {
+                    let pairIndex = batchStart + index
+                    let pool = WebViewProcessPoolManager.shared.pool(forPairIndex: pairIndex)
                     group.addTask {
                         await MainActor.run { self.activePairCount += 1 }
-                        let session = AutomationPairSession(task: task, allowedDomains: allowedDomains)
+                        let session = AutomationPairSession(task: task, allowedDomains: allowedDomains, processPool: pool)
                         do {
                             try await session.execute()
                             await MainActor.run {

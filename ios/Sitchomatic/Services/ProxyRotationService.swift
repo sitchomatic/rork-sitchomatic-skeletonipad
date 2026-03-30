@@ -63,7 +63,7 @@ nonisolated struct ProfileStorageCounts: Sendable {
 @Observable
 @MainActor
 class ProxyRotationService {
-    static let shared = ProxyRotationService()
+    nonisolated(unsafe) static let shared = ProxyRotationService()
 
     nonisolated enum ProxyTarget: String, Sendable {
         case joe

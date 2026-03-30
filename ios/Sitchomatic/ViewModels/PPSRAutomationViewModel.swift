@@ -19,7 +19,9 @@ nonisolated struct BatchResult: Sendable {
 @Observable
 @MainActor
 class PPSRAutomationViewModel {
-    static let shared = PPSRAutomationViewModel()
+    nonisolated(unsafe) static let shared = PPSRAutomationViewModel()
+
+    let batchState = BatchStateManager.shared
 
     var cards: [PPSRCard] = []
     var checks: [PPSRCheck] = []

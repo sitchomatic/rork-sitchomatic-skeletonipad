@@ -27,7 +27,7 @@ nonisolated struct InterventionLearningStore: Codable, Sendable {
 
 @MainActor
 class UserInterventionLearningService {
-    static let shared = UserInterventionLearningService()
+    nonisolated(unsafe) static let shared = UserInterventionLearningService()
 
     private let persistenceKey = "UserInterventionLearning_v1"
     private let maxRecords = 500

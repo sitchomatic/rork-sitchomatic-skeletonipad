@@ -5,7 +5,9 @@ import SwiftUI
 @Observable
 @MainActor
 class UnifiedSessionViewModel {
-    static let shared = UnifiedSessionViewModel()
+    nonisolated(unsafe) static let shared = UnifiedSessionViewModel()
+
+    let batchState = BatchStateManager.shared
 
     var sessions: [DualSiteSession] = []
     var isRunning: Bool = false

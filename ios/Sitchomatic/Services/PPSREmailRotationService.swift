@@ -2,7 +2,7 @@ import Foundation
 
 @MainActor
 class PPSREmailRotationService {
-    static let shared = PPSREmailRotationService()
+    nonisolated(unsafe) static let shared = PPSREmailRotationService()
 
     private var currentIndex: Int = 0
     private let storageKey = "email_csv_list_v1"

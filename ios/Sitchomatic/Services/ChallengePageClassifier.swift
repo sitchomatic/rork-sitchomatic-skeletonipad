@@ -5,7 +5,7 @@ import Vision
 
 @MainActor
 class ChallengePageClassifier {
-    static let shared = ChallengePageClassifier()
+    nonisolated(unsafe) static let shared = ChallengePageClassifier()
 
     private let logger = DebugLogger.shared
     private let aiSolver = AIChallengePageSolverService.shared

@@ -3,7 +3,7 @@ import WebKit
 
 @MainActor
 class SmartButtonRecoveryService {
-    static let shared = SmartButtonRecoveryService()
+    nonisolated(unsafe) static let shared = SmartButtonRecoveryService()
 
     private let logger = DebugLogger.shared
     private var hostRecoveryHistory: [String: [Int]] = [:]

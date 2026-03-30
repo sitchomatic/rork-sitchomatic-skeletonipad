@@ -86,7 +86,7 @@ nonisolated struct PreOptimizerStore: Codable, Sendable {
 
 @MainActor
 class AIPredictiveBatchPreOptimizer {
-    static let shared = AIPredictiveBatchPreOptimizer()
+    nonisolated(unsafe) static let shared = AIPredictiveBatchPreOptimizer()
 
     private let logger = DebugLogger.shared
     private let urlQuality = URLQualityScoringService.shared

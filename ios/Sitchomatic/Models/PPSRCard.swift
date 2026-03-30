@@ -58,6 +58,7 @@ nonisolated enum CardStatus: String, Sendable, Codable {
 }
 
 @Observable
+@MainActor
 class PPSRCard: Identifiable {
     let id: String
     let number: String

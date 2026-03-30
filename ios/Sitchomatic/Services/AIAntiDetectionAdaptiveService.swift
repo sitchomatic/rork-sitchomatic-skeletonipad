@@ -70,7 +70,7 @@ nonisolated struct AntiDetectionStore: Codable, Sendable {
 
 @MainActor
 class AIAntiDetectionAdaptiveService {
-    static let shared = AIAntiDetectionAdaptiveService()
+    nonisolated(unsafe) static let shared = AIAntiDetectionAdaptiveService()
 
     private let logger = DebugLogger.shared
     private let persistenceKey = "AIAntiDetectionAdaptiveData_v1"
