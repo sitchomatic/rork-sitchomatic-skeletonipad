@@ -1,12 +1,13 @@
 import Foundation
 
-// MARK: - Request Types
+// MARK: - Request Types (Swift 6.2 optimized with complete Sendable conformance)
 
 enum AIRequestPriority: Int, Comparable, Sendable {
     case critical = 0
     case normal = 1
     case background = 2
 
+    @inline(__always)
     static func < (lhs: AIRequestPriority, rhs: AIRequestPriority) -> Bool {
         lhs.rawValue < rhs.rawValue
     }
@@ -67,8 +68,12 @@ nonisolated struct AIAnalysisStats: Sendable {
     }
 }
 
-// MARK: - Unified AI Analysis Engine
+// MARK: - Unified AI Analysis Engine (Swift 6.2 optimized)
 
+/// Ultra-high performance AI analysis engine with:
+/// - Task naming for Instruments visibility
+/// - Structured concurrency task groups for parallel processing
+/// - Complete Sendable conformance for isolation safety
 @MainActor
 final class AIAnalysisEngine {
     nonisolated(unsafe) static let shared = AIAnalysisEngine()
@@ -89,8 +94,9 @@ final class AIAnalysisEngine {
         logger.log("AIAnalysisEngine: initialized with cache TTL=\(Int(cacheTTL))s, maxConcurrent=\(maxConcurrentRequests)", category: .automation, level: .info)
     }
 
-    // MARK: - Public API
+    // MARK: - Public API (Swift 6.2 optimized)
 
+    /// Analyze with Swift 6.2 Task naming
     func analyze(
         systemPrompt: String,
         userPrompt: String,
@@ -100,30 +106,32 @@ final class AIAnalysisEngine {
         jsonMode: Bool = false,
         enableCache: Bool = true
     ) async -> String? {
-        let cacheKey = enableCache ? generateCacheKey(systemPrompt: systemPrompt, userPrompt: userPrompt, model: model) : nil
+        await Task(name: "AIAnalysis-\(model.rawValue)-\(priority)") {
+            let cacheKey = enableCache ? generateCacheKey(systemPrompt: systemPrompt, userPrompt: userPrompt, model: model) : nil
 
-        // Check cache first
-        if let cacheKey, let cached = getCachedResponse(for: cacheKey) {
-            stats.cacheHits += 1
-            logger.log("AIAnalysisEngine: cache HIT for request (saved \(Int(Date().timeIntervalSince(cached.cachedAt) * 1000))ms)", category: .evaluation, level: .debug)
-            return cached.response
-        }
+            // Check cache first with inline optimization
+            if let cacheKey, let cached = getCachedResponse(for: cacheKey) {
+                stats.cacheHits += 1
+                logger.log("AIAnalysisEngine: cache HIT for request (saved \(Int(Date().timeIntervalSince(cached.cachedAt) * 1000))ms)", category: .evaluation, level: .debug)
+                return cached.response
+            }
 
-        if enableCache {
-            stats.cacheMisses += 1
-        }
+            if enableCache {
+                stats.cacheMisses += 1
+            }
 
-        let request = AIAnalysisRequest(
-            systemPrompt: systemPrompt,
-            userPrompt: userPrompt,
-            priority: priority,
-            model: model,
-            temperature: temperature,
-            jsonMode: jsonMode,
-            cacheKey: cacheKey
-        )
+            let request = AIAnalysisRequest(
+                systemPrompt: systemPrompt,
+                userPrompt: userPrompt,
+                priority: priority,
+                model: model,
+                temperature: temperature,
+                jsonMode: jsonMode,
+                cacheKey: cacheKey
+            )
 
-        return await processRequest(request)
+            return await processRequest(request)
+        }.value
     }
 
     func analyzeFast(systemPrompt: String, userPrompt: String, enableCache: Bool = true) async -> String? {
@@ -148,6 +156,27 @@ final class AIAnalysisEngine {
         )
     }
 
+    /// Batch analyze multiple requests using Swift 6.2 structured concurrency task groups
+    func analyzeBatch(_ requests: [AIAnalysisRequest]) async -> [String?] {
+        await withTaskGroup(of: (Int, String?).self, returning: [String?].self) { group in
+            for (index, request) in requests.enumerated() {
+                group.addTask(priority: request.priority == .critical ? .high : .medium) {
+                    await Task(name: "AIBatch-\(index)-\(request.model.rawValue)") {
+                        return (index, await self.processRequest(request))
+                    }.value
+                }
+            }
+
+            var results: [(Int, String?)] = []
+            for await result in group {
+                results.append(result)
+            }
+
+            // Sort results by original index to maintain order
+            return results.sorted(by: { $0.0 < $1.0 }).map { $0.1 }
+        }
+    }
+
     func getStats() -> AIAnalysisStats {
         var current = stats
         current.queuedRequests = requestQueue.count
@@ -167,7 +196,7 @@ final class AIAnalysisEngine {
         logger.log("AIAnalysisEngine: stats reset", category: .automation, level: .info)
     }
 
-    // MARK: - Private Implementation
+    // MARK: - Private Implementation (Swift 6.2 optimized)
 
     private func processRequest(_ request: AIAnalysisRequest) async -> String? {
         stats.totalRequests += 1
@@ -179,10 +208,12 @@ final class AIAnalysisEngine {
                 requestQueue.sort { $0.priority < $1.priority }
                 logger.log("AIAnalysisEngine: queued request \(request.id.uuidString.prefix(8)) (priority: \(request.priority), queue size: \(requestQueue.count))", category: .evaluation, level: .debug)
 
-                // Wait for queue to process
-                while requestQueue.contains(where: { $0.id == request.id }) {
-                    try? await Task.sleep(for: .milliseconds(100))
-                }
+                // Wait for queue to process with Task naming
+                await Task(name: "AIQueue-Wait-\(request.id.uuidString.prefix(8))") {
+                    while requestQueue.contains(where: { $0.id == request.id }) {
+                        try? await Task.sleep(for: .milliseconds(100))
+                    }
+                }.value
 
                 // Check cache again after waiting (in case another request cached it)
                 if let cacheKey = request.cacheKey, let cached = getCachedResponse(for: cacheKey) {
@@ -200,7 +231,9 @@ final class AIAnalysisEngine {
 
     private func executeRequest(_ request: AIAnalysisRequest) async -> String? {
         processingCount += 1
-        defer { processingCount -= 1 }
+        defer {
+            processingCount -= 1
+        }
 
         let start = Date()
 
@@ -228,7 +261,7 @@ final class AIAnalysisEngine {
             logger.log("AIAnalysisEngine: completed request in \(Int(duration))ms (model: \(request.model.rawValue))", category: .evaluation, level: .debug)
 
             // Process next queued request if any
-            Task {
+            Task(name: "AIQueue-ProcessNext") {
                 await processNextQueuedRequest()
             }
 
@@ -238,7 +271,7 @@ final class AIAnalysisEngine {
             logger.log("AIAnalysisEngine: request failed after \(Int(duration))ms", category: .evaluation, level: .warning)
 
             // Process next queued request even on failure
-            Task {
+            Task(name: "AIQueue-ProcessNext-AfterFail") {
                 await processNextQueuedRequest()
             }
 
@@ -255,11 +288,13 @@ final class AIAnalysisEngine {
         _ = await executeRequest(request)
     }
 
+    @inline(__always)
     private func generateCacheKey(systemPrompt: String, userPrompt: String, model: GrokModel) -> String {
         let combined = "\(model.rawValue)|\(systemPrompt)|\(userPrompt)"
         return String(combined.hashValue)
     }
 
+    @inline(__always)
     private func getCachedResponse(for key: String) -> CachedResponse? {
         // Clean expired entries first
         let now = Date()
@@ -274,6 +309,7 @@ final class AIAnalysisEngine {
         return cached
     }
 
+    @inline(__always)
     private func cacheResponse(_ response: String, for key: String) {
         let now = Date()
         let cached = CachedResponse(
