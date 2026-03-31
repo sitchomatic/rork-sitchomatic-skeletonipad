@@ -156,9 +156,9 @@ struct LoginMoreMenuView: View {
             }
 
             NavigationLink {
-                CredentialExportView(vm: vm)
+                ConsolidatedImportExportView()
             } label: {
-                moreRow(icon: "square.and.arrow.up.fill", title: "Export Credentials", subtitle: "Text or CSV by category", color: .blue)
+                moreRow(icon: "square.and.arrow.up.fill", title: "Import / Export", subtitle: "Full backup, credentials & cards", color: .blue)
             }
         }
     }

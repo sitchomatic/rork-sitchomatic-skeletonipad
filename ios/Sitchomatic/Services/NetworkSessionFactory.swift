@@ -45,7 +45,7 @@ class NetworkSessionFactory {
 
     private let proxyService = ProxyRotationService.shared
     private let deviceProxy = DeviceProxyService.shared
-    private let scoring = ProxyScoringService.shared
+    private let scoring = ProxyQualityDecayService.shared
     private let resilience = NetworkResilienceService.shared
     private let logger = DebugLogger.shared
     private let aiProxyStrategy = AIProxyStrategyService.shared
