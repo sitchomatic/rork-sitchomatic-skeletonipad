@@ -9,7 +9,7 @@ class ServiceContainer {
     let deviceProxy: DeviceProxyService
     let debugLogger: DebugLogger
     let fingerprintValidation: FingerprintValidationService
-    let screenshotCache: ScreenshotCacheService
+    let screenshotCache: ScreenshotCache
 
     let socks5Manager: SOCKS5ProxyManager
     let jsBuilder: LoginJSBuilder
@@ -21,7 +21,7 @@ class ServiceContainer {
         deviceProxy: DeviceProxyService? = nil,
         debugLogger: DebugLogger? = nil,
         fingerprintValidation: FingerprintValidationService? = nil,
-        screenshotCache: ScreenshotCacheService? = nil
+        screenshotCache: ScreenshotCache? = nil
     ) {
         self.proxyRotation = proxyRotation ?? .shared
         self.networkSessionFactory = networkSessionFactory ?? .shared

@@ -8,7 +8,7 @@ class EvidenceBundleViewModel {
     nonisolated(unsafe) static let shared = EvidenceBundleViewModel()
 
     private let service = EvidenceBundleService.shared
-    private let screenshotCache = ScreenshotCacheService.shared
+    private let screenshotCache = ScreenshotCache.shared
 
     var selectedFilter: BundleFilter = .all
     var searchText: String = ""

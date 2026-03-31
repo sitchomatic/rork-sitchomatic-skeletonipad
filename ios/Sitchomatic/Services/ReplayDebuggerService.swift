@@ -77,7 +77,7 @@ class ReplayDebuggerService {
     nonisolated(unsafe) static let shared = ReplayDebuggerService()
 
     private let logger = DebugLogger.shared
-    private let screenshotCache = ScreenshotCacheService.shared
+    private let screenshotCache = ScreenshotCache.shared
     private let replayLogger = SessionReplayLogger.shared
 
     func loadSavedReplays() -> [EnrichedSessionReplay] {

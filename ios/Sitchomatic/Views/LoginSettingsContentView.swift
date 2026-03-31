@@ -25,7 +25,7 @@ struct LoginSettingsContentView: View {
         .navigationTitle("Advanced Settings")
         .sheet(isPresented: $showDebugScreenshots) {
             NavigationStack {
-                LoginDebugScreenshotsView(vm: vm)
+                UnifiedScreenshotFeedView()
                     .toolbar {
                         ToolbarItem(placement: .topBarLeading) {
                             Button("Done") { showDebugScreenshots = false }

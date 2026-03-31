@@ -153,7 +153,7 @@ final class WebViewMemoryProfiler {
     func triggerEviction() {
         logger.log("WebViewMemoryProfiler: evicting screenshot cache due to memory pressure", category: .performance, level: .warning)
         UnifiedScreenshotManager.shared.handleMemoryPressure()
-        ScreenshotCacheService.shared.setMaxCacheCounts(memory: 10, disk: 200)
+        ScreenshotCache.shared.setMaxCacheCounts(memory: 10, disk: 200)
     }
 
     func clearHistory() {

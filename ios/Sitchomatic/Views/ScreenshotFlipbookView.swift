@@ -2,7 +2,7 @@ import SwiftUI
 import UIKit
 
 struct ScreenshotFlipbookView: View {
-    let screenshots: [PPSRDebugScreenshot]
+    let screenshots: [CapturedScreenshot]
     let startIndex: Int
     @Environment(\.dismiss) private var dismiss
     @State private var currentIndex: Int = 0
@@ -146,7 +146,7 @@ struct ScreenshotFlipbookView: View {
     }
 
     @ViewBuilder
-    private func resultBadge(for screenshot: PPSRDebugScreenshot) -> some View {
+    private func resultBadge(for screenshot: CapturedScreenshot) -> some View {
         let result = screenshot.effectiveResult
         Label(result.displayLabel.uppercased(), systemImage: result.icon)
             .font(.system(.caption2, design: .monospaced, weight: .bold))
@@ -168,7 +168,7 @@ struct ScreenshotFlipbookView: View {
 }
 
 struct FlipbookPage: View {
-    let screenshot: PPSRDebugScreenshot
+    let screenshot: CapturedScreenshot
     @Binding var isZoomed: Bool
     @State private var scale: CGFloat = 1.0
     @State private var lastScale: CGFloat = 1.0

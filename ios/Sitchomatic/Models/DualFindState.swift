@@ -204,34 +204,6 @@ nonisolated enum DualFindScreenshotCount: Int, CaseIterable, Sendable {
     }
 }
 
-nonisolated struct DualFindLiveScreenshot: Identifiable, Sendable {
-    let id: String
-    let email: String
-    let password: String
-    let platform: String
-    let url: String
-    let image: UIImage
-    let step: String
-    let timestamp: Date
-    let outcome: String
-
-    init(email: String, password: String, platform: String, url: String, image: UIImage, step: String, outcome: String = "") {
-        self.id = UUID().uuidString
-        self.email = email
-        self.password = password
-        self.platform = platform
-        self.url = url
-        self.image = image
-        self.step = step
-        self.timestamp = Date()
-        self.outcome = outcome
-    }
-
-    var formattedTime: String {
-        DateFormatters.timeOnly.string(from: timestamp)
-    }
-}
-
 nonisolated enum DualFindSessionCount: Int, CaseIterable, Sendable {
     case one = 1
     case two = 2

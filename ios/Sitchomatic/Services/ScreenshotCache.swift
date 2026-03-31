@@ -2,11 +2,11 @@ import Foundation
 import UIKit
 
 @MainActor
-class ScreenshotCacheService {
-    nonisolated(unsafe) static let shared = ScreenshotCacheService()
+class ScreenshotCache {
+    nonisolated(unsafe) static let shared = ScreenshotCache()
 
     private let cacheDirectory: URL
-    private(set) var maxMemoryCacheCount: Int = 300
+    private(set) var maxMemoryCacheCount: Int = 200
     private(set) var maxDiskCacheCount: Int = 1500
     private let maxDiskCacheSizeBytes: Int64 = 500 * 1024 * 1024
     private var memoryCache: [String: UIImage] = [:]
@@ -56,7 +56,7 @@ class ScreenshotCacheService {
         }
 
         let fileURL = fileURL(for: key)
-        let jpegData = compressed.jpegData(compressionQuality: 0.4)
+        let jpegData = compressed.jpegData(compressionQuality: 0.15)
         Task.detached(priority: .utility) {
             if let data = jpegData {
                 try? data.write(to: fileURL, options: .atomic)
@@ -67,11 +67,25 @@ class ScreenshotCacheService {
         }
     }
 
+    func storeData(_ data: Data, forKey key: String) {
+        let fileURL = fileURL(for: key)
+        Task.detached(priority: .utility) {
+            try? data.write(to: fileURL, options: .atomic)
+        }
+
+        if let image = UIImage(data: data), !diskOnlyMode, !CrashProtectionService.shared.isMemoryCritical {
+            memoryCache[key] = image
+            accessOrder.removeAll { $0 == key }
+            accessOrder.append(key)
+            evictMemoryCacheIfNeeded()
+        }
+    }
+
     func compressForMemory(_ image: UIImage) -> UIImage {
-        let maxDimension: CGFloat = 800
+        let maxDimension: CGFloat = 1320
         let size = image.size
         if size.width <= maxDimension && size.height <= maxDimension {
-            if let data = image.jpegData(compressionQuality: 0.3), let compressed = UIImage(data: data) {
+            if let data = image.jpegData(compressionQuality: 0.15), let compressed = UIImage(data: data) {
                 return compressed
             }
             return image
@@ -82,7 +96,7 @@ class ScreenshotCacheService {
         let resized = renderer.image { _ in
             image.draw(in: CGRect(origin: .zero, size: newSize))
         }
-        if let data = resized.jpegData(compressionQuality: 0.3), let compressed = UIImage(data: data) {
+        if let data = resized.jpegData(compressionQuality: 0.15), let compressed = UIImage(data: data) {
             return compressed
         }
         return resized
@@ -108,7 +122,7 @@ class ScreenshotCacheService {
 
         let skipMemoryCache = diskOnlyMode || CrashProtectionService.shared.isMemoryCritical
 
-        let jpegData = await ConcurrentWork.compressImageToData(image, quality: 0.3, maxDimension: 800)
+        let jpegData = await ConcurrentWork.compressImageToData(image, quality: 0.15, maxDimension: 1320)
 
         if !skipMemoryCache, let data = jpegData, let compressed = UIImage(data: data) {
             memoryCache[key] = compressed
@@ -129,7 +143,7 @@ class ScreenshotCacheService {
     }
 
     func compressForMemoryAsync(_ image: UIImage) async -> UIImage {
-        if let data = await ConcurrentWork.compressImageToData(image, quality: 0.3, maxDimension: 800),
+        if let data = await ConcurrentWork.compressImageToData(image, quality: 0.15, maxDimension: 1320),
            let compressed = UIImage(data: data) {
             return compressed
         }

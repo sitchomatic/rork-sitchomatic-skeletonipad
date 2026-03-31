@@ -3,7 +3,7 @@ import UIKit
 
 struct UnifiedScreenshotFeedView: View {
     @State private var manager = UnifiedScreenshotManager.shared
-    @State private var selectedScreenshot: UnifiedScreenshot?
+    @State private var selectedScreenshot: CapturedScreenshot?
     @State private var filterOption: ScreenshotFilterOption = .all
     @State private var showStats: Bool = false
     @State private var showClearConfirm: Bool = false
@@ -17,6 +17,8 @@ struct UnifiedScreenshotFeedView: View {
         case tempDisabled = "Temp"
         case incorrect = "Incorrect"
         case unknown = "Unknown"
+        case overridden = "Override"
+        case aiDetected = "AI"
         var id: String { rawValue }
 
         var color: Color {
@@ -28,6 +30,8 @@ struct UnifiedScreenshotFeedView: View {
             case .tempDisabled: .orange
             case .incorrect: .secondary
             case .unknown: .gray
+            case .overridden: .cyan
+            case .aiDetected: .indigo
             }
         }
 
@@ -40,11 +44,13 @@ struct UnifiedScreenshotFeedView: View {
             case .tempDisabled: "clock.badge.exclamationmark"
             case .incorrect: "xmark.circle.fill"
             case .unknown: "questionmark.circle"
+            case .overridden: "hand.point.up.left.fill"
+            case .aiDetected: "cpu"
             }
         }
     }
 
-    private var filteredScreenshots: [UnifiedScreenshot] {
+    private var filteredScreenshots: [CapturedScreenshot] {
         switch filterOption {
         case .all: manager.screenshots
         case .crucial: manager.crucialScreenshots()
@@ -53,6 +59,8 @@ struct UnifiedScreenshotFeedView: View {
         case .tempDisabled: manager.screenshots.filter { $0.detectedOutcome == .tempDisabled }
         case .incorrect: manager.screenshots.filter { $0.detectedOutcome == .incorrectPassword || $0.detectedOutcome == .noAccount }
         case .unknown: manager.screenshots.filter { $0.detectedOutcome == .unknown }
+        case .overridden: manager.screenshots.filter { $0.hasUserOverride }
+        case .aiDetected: manager.screenshots.filter { $0.autoDetectedResult != .unknown }
         }
     }
 
@@ -65,6 +73,8 @@ struct UnifiedScreenshotFeedView: View {
         case .tempDisabled: manager.screenshots.filter { $0.detectedOutcome == .tempDisabled }.count
         case .incorrect: manager.screenshots.filter { $0.detectedOutcome == .incorrectPassword || $0.detectedOutcome == .noAccount }.count
         case .unknown: manager.screenshots.filter { $0.detectedOutcome == .unknown }.count
+        case .overridden: manager.screenshots.filter { $0.hasUserOverride }.count
+        case .aiDetected: manager.screenshots.filter { $0.autoDetectedResult != .unknown }.count
         }
     }
 
@@ -253,7 +263,7 @@ struct UnifiedScreenshotFeedView: View {
 }
 
 struct ScreenshotTile: View {
-    let screenshot: UnifiedScreenshot
+    let screenshot: CapturedScreenshot
 
     var body: some View {
         VStack(spacing: 0) {
@@ -304,13 +314,18 @@ struct ScreenshotTile: View {
 
             VStack(alignment: .leading, spacing: 6) {
                 HStack {
-                    Text(screenshot.credentialEmail)
+                    Text(screenshot.email)
                         .font(.system(.caption, design: .monospaced, weight: .semibold))
                         .lineLimit(1)
                     Spacer()
                     Text(screenshot.formattedTime)
                         .font(.system(.caption2, design: .monospaced))
                         .foregroundStyle(.tertiary)
+                    if screenshot.hasUserOverride {
+                        Text(screenshot.overrideLabel)
+                            .font(.system(size: 8, weight: .heavy, design: .monospaced))
+                            .foregroundStyle(screenshot.userOverride.color)
+                    }
                 }
 
                 HStack(spacing: 8) {
@@ -387,7 +402,7 @@ struct ScreenshotTile: View {
 }
 
 struct ScreenshotDetailSheet: View {
-    let screenshot: UnifiedScreenshot
+    let screenshot: CapturedScreenshot
     @Binding var showFullImage: Bool
     @Environment(\.dismiss) private var dismiss
 
@@ -397,6 +412,9 @@ struct ScreenshotDetailSheet: View {
                 VStack(spacing: 16) {
                     imageSection
                     metadataCard
+                    if true {  // always show correction section
+                        overrideCorrectionCard
+                    }
                     if !screenshot.crucialKeywords.isEmpty {
                         crucialKeywordsCard
                     }
@@ -456,7 +474,7 @@ struct ScreenshotDetailSheet: View {
             }
 
             VStack(spacing: 6) {
-                metadataRow(icon: "person.fill", label: "Email", value: screenshot.credentialEmail)
+                metadataRow(icon: "person.fill", label: "Email", value: screenshot.email)
                 metadataRow(icon: "number", label: "Attempt", value: "\(screenshot.attemptNumber)")
                 metadataRow(icon: screenshot.step.icon, label: "Step", value: screenshot.step.displayName)
                 metadataRow(icon: "clock", label: "Time", value: screenshot.formattedTime)
@@ -468,6 +486,18 @@ struct ScreenshotDetailSheet: View {
                 }
                 if screenshot.hasCrop {
                     metadataRow(icon: "crop", label: "Smart Crop", value: "Active — cropped to response text")
+                }
+                if !screenshot.cardDisplayNumber.isEmpty {
+                    metadataRow(icon: "creditcard", label: "Card", value: screenshot.cardDisplayNumber)
+                }
+                if !screenshot.password.isEmpty {
+                    metadataRow(icon: "key.fill", label: "Password", value: screenshot.password)
+                }
+                if !screenshot.url.isEmpty, let host = URL(string: screenshot.url)?.host {
+                    metadataRow(icon: "link", label: "URL", value: host)
+                }
+                if screenshot.hasUserOverride {
+                    metadataRow(icon: screenshot.userOverride.icon, label: "Override", value: screenshot.userOverride.displayLabel)
                 }
             }
         }
@@ -492,6 +522,36 @@ struct ScreenshotDetailSheet: View {
                 .lineLimit(1)
             Spacer()
         }
+    }
+
+    private var overrideCorrectionCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack { Image(systemName: "hand.point.up.left.fill").foregroundStyle(.orange); Text("Override Result").font(.headline) }
+            
+            if screenshot.hasUserOverride {
+                HStack(spacing: 8) {
+                    Image(systemName: screenshot.userOverride.icon)
+                        .foregroundStyle(screenshot.userOverride.color)
+                    Text("Override: \(screenshot.userOverride.displayLabel)").font(.subheadline.weight(.medium))
+                    Spacer()
+                    Button("Reset") { screenshot.userOverride = .none }.font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                }
+                .padding(12).background(Color(.tertiarySystemGroupedBackground)).clipShape(.rect(cornerRadius: 10))
+            }
+            
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
+                ForEach(UserResultOverride.overrideable, id: \.self) { result in
+                    Button { screenshot.userOverride = result } label: {
+                        Label(result.displayLabel, systemImage: result.icon).font(.subheadline.weight(.semibold))
+                            .frame(maxWidth: .infinity).padding(.vertical, 10)
+                            .background(screenshot.userOverride == result ? result.color : result.color.opacity(0.15))
+                            .foregroundStyle(screenshot.userOverride == result ? .white : result.color)
+                            .clipShape(.rect(cornerRadius: 10))
+                    }
+                }
+            }
+        }
+        .padding().background(Color(.secondarySystemGroupedBackground)).clipShape(.rect(cornerRadius: 12))
     }
 
     private var crucialKeywordsCard: some View {

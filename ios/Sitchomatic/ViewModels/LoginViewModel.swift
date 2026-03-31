@@ -42,7 +42,9 @@ class LoginViewModel {
     var autoRetryMaxAttempts: Int = 3
     private var autoRetryBackoffCounts: [String: Int] = [:]
     var consecutiveConnectionFailures: Int = 0
-    var debugScreenshots: [PPSRDebugScreenshot] = []
+    var debugScreenshots: [CapturedScreenshot] {
+        UnifiedScreenshotManager.shared.screenshots.filter { !$0.cardId.isEmpty || !$0.cardDisplayNumber.isEmpty }
+    }
     var fingerprintPassRate: String { FingerprintValidationService.shared.formattedPassRate }
     var fingerprintAvgScore: Double { FingerprintValidationService.shared.averageScore }
     var fingerprintHistory: [FingerprintValidationService.FingerprintScore] { FingerprintValidationService.shared.scoreHistory }
@@ -1182,39 +1184,27 @@ class LoginViewModel {
         var id: String { rawValue }
     }
 
-    private let maxInMemoryScreenshots: Int = 200
 
-    func addScreenshot(_ screenshot: PPSRDebugScreenshot) {
-        if isRunning && CrashProtectionService.shared.isMemoryCritical {
-            ScreenshotCacheService.shared.store(screenshot.image, forKey: screenshot.id)
-            return
-        }
-        debugScreenshots.insert(screenshot, at: 0)
-        let effectiveLimit = isRunning ? min(15, maxInMemoryScreenshots) : maxInMemoryScreenshots
-        if debugScreenshots.count > effectiveLimit {
-            let overflow = Array(debugScreenshots.suffix(from: effectiveLimit))
-            for ss in overflow {
-                ScreenshotCacheService.shared.store(ss.image, forKey: ss.id)
-            }
-            debugScreenshots.removeLast(debugScreenshots.count - effectiveLimit)
-        }
+    func addScreenshot(_ screenshot: CapturedScreenshot) {
+        UnifiedScreenshotManager.shared.addCapturedScreenshot(screenshot)
     }
 
     func clearDebugScreenshots() {
         let count = debugScreenshots.count
-        debugScreenshots.removeAll()
+        UnifiedScreenshotManager.shared.screenshots.removeAll { !$0.cardId.isEmpty || !$0.cardDisplayNumber.isEmpty }
         log("Cleared \(count) debug screenshots")
     }
 
     func handleMemoryPressure() {
         let before = debugScreenshots.count
-        let keep = min(50, maxInMemoryScreenshots / 4)
-        if debugScreenshots.count > keep {
+        let keep = 50
+        if before > keep {
             let overflow = Array(debugScreenshots.suffix(from: keep))
             for ss in overflow {
-                ScreenshotCacheService.shared.store(ss.image, forKey: ss.id)
+                ScreenshotCache.shared.store(ss.image, forKey: ss.id)
             }
-            debugScreenshots.removeLast(debugScreenshots.count - keep)
+            let overflowIds = Set(overflow.map { $0.id })
+            UnifiedScreenshotManager.shared.screenshots.removeAll { overflowIds.contains($0.id) }
             log("Memory pressure: flushed \(before - keep) screenshots to disk cache", level: .warning)
         }
         if globalLogs.count > 200 {
@@ -1282,7 +1272,7 @@ class LoginViewModel {
         log("Added \(emails.count) disabled accounts to blacklist", level: .success)
     }
 
-    func correctResult(for screenshot: PPSRDebugScreenshot, override: UserResultOverride) {
+    func correctResult(for screenshot: CapturedScreenshot, override: UserResultOverride) {
         screenshot.userOverride = override
 
         let allCredScreenshots = debugScreenshots.filter { $0.cardId == screenshot.cardId }
@@ -1327,12 +1317,12 @@ class LoginViewModel {
         persistCredentials()
     }
 
-    func resetScreenshotOverride(_ screenshot: PPSRDebugScreenshot) {
+    func resetScreenshotOverride(_ screenshot: CapturedScreenshot) {
         screenshot.userOverride = .none
         log("Reset override for screenshot at \(screenshot.formattedTime)")
     }
 
-    func requeueCredentialFromScreenshot(_ screenshot: PPSRDebugScreenshot) {
+    func requeueCredentialFromScreenshot(_ screenshot: CapturedScreenshot) {
         guard let cred = credentials.first(where: { $0.id == screenshot.cardId }) else {
             log("Requeue: could not find credential \(screenshot.cardDisplayNumber)", level: .warning)
             return
@@ -1342,11 +1332,11 @@ class LoginViewModel {
         persistCredentials()
     }
 
-    func screenshotsForCredential(_ credId: String) -> [PPSRDebugScreenshot] {
+    func screenshotsForCredential(_ credId: String) -> [CapturedScreenshot] {
         debugScreenshots.filter { $0.cardId == credId }
     }
 
-    func screenshotsForAttempt(_ attempt: LoginAttempt) -> [PPSRDebugScreenshot] {
+    func screenshotsForAttempt(_ attempt: LoginAttempt) -> [CapturedScreenshot] {
         let ids = Set(attempt.screenshotIds)
         return debugScreenshots.filter { ids.contains($0.id) }
     }

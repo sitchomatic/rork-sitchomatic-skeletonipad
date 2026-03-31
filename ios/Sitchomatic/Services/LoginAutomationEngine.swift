@@ -51,7 +51,7 @@ class LoginAutomationEngine {
     private let activityMonitor = SessionActivityMonitor.shared
     private let liveSpeed = LiveSpeedAdaptationService.shared
     private let strictDetection = StrictLoginDetectionEngine.shared
-    var onScreenshot: ((PPSRDebugScreenshot) -> Void)?
+    var onScreenshot: ((CapturedScreenshot) -> Void)?
     var onPurgeScreenshots: (([String]) -> Void)?
     var onConnectionFailure: ((String) -> Void)?
     var onUnusualFailure: ((String) -> Void)?
@@ -1133,7 +1133,7 @@ class LoginAutomationEngine {
                 logger.log("  Signal: \(signal)", category: .evaluation, level: .trace, sessionId: sessionId)
             }
 
-            let autoResult: PPSRDebugScreenshot.AutoDetectedResult
+            let autoResult: AutoDetectedResult
             switch evaluation.outcome {
             case .success: autoResult = .success
             case .noAcc: autoResult = .noAcc
@@ -1354,7 +1354,7 @@ class LoginAutomationEngine {
         return attempt.screenshotIds.count < limit
     }
 
-    private func captureAlwaysScreenshot(session: LoginSiteWebSession, attempt: LoginAttempt, cycle: Int, maxCycles: Int, welcomeTextFound: Bool, redirected: Bool, evaluationReason: String, currentURL: String, autoResult: PPSRDebugScreenshot.AutoDetectedResult) async {
+    private func captureAlwaysScreenshot(session: LoginSiteWebSession, attempt: LoginAttempt, cycle: Int, maxCycles: Int, welcomeTextFound: Bool, redirected: Bool, evaluationReason: String, currentURL: String, autoResult: AutoDetectedResult) async {
         guard shouldCaptureScreenshot(attempt: attempt) else {
             logger.log("Screenshot skipped (limit=\(automationSettings.screenshotsPerAttempt.limit), captured=\(attempt.screenshotIds.count))", category: .screenshot, level: .trace)
             return
@@ -1379,25 +1379,19 @@ class LoginAutomationEngine {
             }
         }
 
-        let compressed: UIImage
-        if let jpegData = img.jpegData(compressionQuality: 0.4), let ci = UIImage(data: jpegData) {
-            compressed = ci
-        } else {
-            compressed = img
-        }
+        let fullData = ScreenshotCaptureService.shared.compressImageToData(img)
 
         var noteExtra = ""
         if ocrDisabledCheck.type != .none {
             noteExtra = " | OCR_DISABLED: \(ocrDisabledCheck.type.rawValue) '\(ocrDisabledCheck.matchedText ?? "")'"
         }
 
-        let screenshot = PPSRDebugScreenshot(
+        let screenshot = CapturedScreenshot(
             stepName: "post_login_cycle_\(cycle)",
+            email: attempt.credential.username,
             cardDisplayNumber: attempt.credential.username,
             cardId: attempt.credential.id,
-            vin: "",
-            email: attempt.credential.username,
-            image: compressed,
+            fullImageData: fullData,
             note: "Cycle \(cycle)/\(maxCycles) | Welcome!: \(welcomeTextFound ? "YES" : "NO") | Redirect: \(redirected ? "YES" : "NO") | \(evaluationReason) | URL: \(currentURL)\(noteExtra)",
             autoDetectedResult: finalAutoResult
         )
@@ -1592,7 +1586,7 @@ class LoginAutomationEngine {
         return await visionML.detectSuccessIndicators(in: screenshot)
     }
 
-    private func captureTerminalScreenshot(session: LoginSiteWebSession, attempt: LoginAttempt, step: String, note: String, autoResult: PPSRDebugScreenshot.AutoDetectedResult, terminalType: TrueDetectionService.TerminalError) async {
+    private func captureTerminalScreenshot(session: LoginSiteWebSession, attempt: LoginAttempt, step: String, note: String, autoResult: AutoDetectedResult, terminalType: TrueDetectionService.TerminalError) async {
         let config = TrueDetectionService.TrueDetectionConfig()
 
         let terminalImage: UIImage?
@@ -1608,12 +1602,7 @@ class LoginAutomationEngine {
         }
         guard let finalImage else { return }
 
-        let compressed: UIImage
-        if let jpegData = finalImage.jpegData(compressionQuality: 0.5), let ci = UIImage(data: jpegData) {
-            compressed = ci
-        } else {
-            compressed = finalImage
-        }
+        let fullData = ScreenshotCaptureService.shared.compressImageToData(finalImage)
 
         let previousIds = attempt.screenshotIds
         if !previousIds.isEmpty {
@@ -1621,15 +1610,14 @@ class LoginAutomationEngine {
             attempt.screenshotIds.removeAll()
         }
 
-        attempt.responseSnapshot = compressed
+        attempt.responseSnapshot = finalImage
 
-        let screenshot = PPSRDebugScreenshot(
+        let screenshot = CapturedScreenshot(
             stepName: step,
+            email: attempt.credential.username,
             cardDisplayNumber: attempt.credential.username,
             cardId: attempt.credential.id,
-            vin: "",
-            email: attempt.credential.username,
-            image: compressed,
+            fullImageData: fullData,
             note: note,
             autoDetectedResult: autoResult
         )
@@ -1708,7 +1696,7 @@ class LoginAutomationEngine {
         return fullScreenshot
     }
 
-    private func captureDebugScreenshot(session: LoginSiteWebSession, attempt: LoginAttempt, step: String, note: String, autoResult: PPSRDebugScreenshot.AutoDetectedResult = .unknown) async {
+    private func captureDebugScreenshot(session: LoginSiteWebSession, attempt: LoginAttempt, step: String, note: String, autoResult: AutoDetectedResult = .unknown) async {
         guard shouldCaptureScreenshot(attempt: attempt) else {
             logger.log("Debug screenshot skipped (limit=\(automationSettings.screenshotsPerAttempt.limit), captured=\(attempt.screenshotIds.count))", category: .screenshot, level: .trace)
             return
@@ -1717,20 +1705,14 @@ class LoginAutomationEngine {
 
         attempt.responseSnapshot = fullImage
 
-        let compressed: UIImage
-        if let jpegData = fullImage.jpegData(compressionQuality: 0.4), let ci = UIImage(data: jpegData) {
-            compressed = ci
-        } else {
-            compressed = fullImage
-        }
+        let fullData = ScreenshotCaptureService.shared.compressImageToData(fullImage)
 
-        let screenshot = PPSRDebugScreenshot(
+        let screenshot = CapturedScreenshot(
             stepName: step,
+            email: attempt.credential.username,
             cardDisplayNumber: attempt.credential.username,
             cardId: attempt.credential.id,
-            vin: "",
-            email: attempt.credential.username,
-            image: compressed,
+            fullImageData: fullData,
             note: note,
             autoDetectedResult: autoResult
         )

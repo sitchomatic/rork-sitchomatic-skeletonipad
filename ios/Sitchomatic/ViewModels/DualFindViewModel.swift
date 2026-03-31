@@ -41,11 +41,12 @@ class DualFindViewModel {
     var copiedHitId: String?
 
     var screenshotCount: DualFindScreenshotCount = .three
-    var liveScreenshots: [DualFindLiveScreenshot] = []
+    var liveScreenshots: [CapturedScreenshot] {
+        UnifiedScreenshotManager.shared.screenshots.filter { !$0.password.isEmpty }
+    }
     var showLiveFeed: Bool = false
     var liveFeedFilterEmail: String = ""
     var liveFeedFilterPlatform: String = ""
-    private let maxLiveScreenshots: Int = 200
 
     var activeIntervention: DualFindInterventionRequest?
     var showInterventionSheet: Bool = false
@@ -1333,21 +1334,19 @@ class DualFindViewModel {
         guard let image = await session.captureScreenshot() else { return }
         let currentURL = await session.getCurrentURL()
 
-        let screenshot = DualFindLiveScreenshot(
+        let screenshot = CapturedScreenshot(
+            stepName: step,
             email: email,
+            site: site.rawValue,
             password: password,
-            platform: site.rawValue,
             url: currentURL,
-            image: image,
-            step: step
+            fullImage: image,
+            note: ""
         )
-        liveScreenshots.insert(screenshot, at: 0)
-        if liveScreenshots.count > maxLiveScreenshots {
-            liveScreenshots.removeLast(liveScreenshots.count - maxLiveScreenshots)
-        }
+        UnifiedScreenshotManager.shared.addCapturedScreenshot(screenshot)
     }
 
-    var filteredLiveScreenshots: [DualFindLiveScreenshot] {
+    var filteredLiveScreenshots: [CapturedScreenshot] {
         var result = liveScreenshots
         if !liveFeedFilterEmail.isEmpty {
             result = result.filter { $0.email.localizedStandardContains(liveFeedFilterEmail) }
@@ -1359,7 +1358,7 @@ class DualFindViewModel {
     }
 
     func clearLiveScreenshots() {
-        liveScreenshots.removeAll()
+        UnifiedScreenshotManager.shared.screenshots.removeAll { !$0.password.isEmpty }
     }
 
     // MARK: - Logging

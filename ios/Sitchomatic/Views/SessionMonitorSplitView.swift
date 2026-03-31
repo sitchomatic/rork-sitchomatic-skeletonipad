@@ -228,7 +228,7 @@ struct SessionMonitorSplitView: View {
         .background(Color(.systemGroupedBackground))
     }
 
-    private func screenshotGallery(_ screenshots: [UnifiedScreenshot]) -> some View {
+    private func screenshotGallery(_ screenshots: [CapturedScreenshot]) -> some View {
         TabView {
             ForEach(screenshots) { screenshot in
                 VStack(spacing: 6) {

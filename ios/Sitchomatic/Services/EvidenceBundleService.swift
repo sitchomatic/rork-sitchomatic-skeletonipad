@@ -8,7 +8,7 @@ class EvidenceBundleService {
     nonisolated(unsafe) static let shared = EvidenceBundleService()
 
     var bundles: [EvidenceBundle] = []
-    private let screenshotCache = ScreenshotCacheService.shared
+    private let screenshotCache = ScreenshotCache.shared
     private let logger = DebugLogger.shared
 
     var totalCount: Int { bundles.count }

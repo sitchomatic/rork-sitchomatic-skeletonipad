@@ -191,7 +191,7 @@ struct ReplayTimelineView: View {
     @State private var playbackTask: Task<Void, Never>?
     @State private var showLogs: Bool = false
     @State private var showHeatmap: Bool = false
-    @State private var heatmapScreenshot: PPSRDebugScreenshot?
+    @State private var heatmapScreenshot: CapturedScreenshot?
     @State private var expandedSteps: Set<String> = []
     @State private var filterLevel: StepFilter = .all
 
