@@ -1,4 +1,5 @@
 import Foundation
+import Synchronization
 
 @MainActor
 class TaskMetricsCollectionService {
@@ -165,19 +166,14 @@ class TaskMetricsCollectionService {
     }
 }
 
-private final class MetricsDelegate: NSObject, URLSessionTaskDelegate, @unchecked Sendable {
-    private var _metrics: URLSessionTaskMetrics?
-    private let lock = NSLock()
+private final class MetricsDelegate: NSObject, URLSessionTaskDelegate, Sendable {
+    private let storage = Mutex<URLSessionTaskMetrics?>(nil)
 
     var collectedMetrics: URLSessionTaskMetrics? {
-        lock.lock()
-        defer { lock.unlock() }
-        return _metrics
+        storage.withLock { $0 }
     }
 
     nonisolated func urlSession(_ session: URLSession, task: URLSessionTask, didFinishCollecting metrics: URLSessionTaskMetrics) {
-        lock.lock()
-        _metrics = metrics
-        lock.unlock()
+        storage.withLock { $0 = metrics }
     }
 }

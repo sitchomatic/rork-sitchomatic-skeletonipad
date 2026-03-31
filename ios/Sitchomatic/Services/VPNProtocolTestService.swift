@@ -10,7 +10,8 @@ nonisolated struct VPNProtocolTestResult: Sendable {
     let portOpen: Bool
 }
 
-final class VPNProtocolTestService: @unchecked Sendable {
+/// Stateless VPN protocol test service — all methods are nonisolated and require no mutable state.
+final class VPNProtocolTestService: Sendable {
     static let shared = VPNProtocolTestService()
 
     nonisolated func testWireGuardEndpoint(_ config: WireGuardConfig) async -> VPNProtocolTestResult {
