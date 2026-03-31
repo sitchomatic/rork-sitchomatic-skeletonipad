@@ -1322,7 +1322,7 @@ class LoginViewModel {
         log("Reset override for screenshot at \(screenshot.formattedTime)")
     }
 
-    func requeueCredentialFromScreenshot(_ screenshot: PPSRDebugScreenshot) {
+    func requeueCredentialFromScreenshot(_ screenshot: CapturedScreenshot) {
         guard let cred = credentials.first(where: { $0.id == screenshot.cardId }) else {
             log("Requeue: could not find credential \(screenshot.cardDisplayNumber)", level: .warning)
             return
@@ -1332,11 +1332,11 @@ class LoginViewModel {
         persistCredentials()
     }
 
-    func screenshotsForCredential(_ credId: String) -> [PPSRDebugScreenshot] {
+    func screenshotsForCredential(_ credId: String) -> [CapturedScreenshot] {
         debugScreenshots.filter { $0.cardId == credId }
     }
 
-    func screenshotsForAttempt(_ attempt: LoginAttempt) -> [PPSRDebugScreenshot] {
+    func screenshotsForAttempt(_ attempt: LoginAttempt) -> [CapturedScreenshot] {
         let ids = Set(attempt.screenshotIds)
         return debugScreenshots.filter { ids.contains($0.id) }
     }

@@ -1403,11 +1403,11 @@ class PPSRAutomationViewModel {
     var rotationEmailCount: Int { emailRotation.count }
     var rotationEmails: [String] { emailRotation.emails }
 
-    func screenshotsForCard(_ cardId: String) -> [PPSRDebugScreenshot] {
+    func screenshotsForCard(_ cardId: String) -> [CapturedScreenshot] {
         debugScreenshots.filter { $0.cardId == cardId }
     }
 
-    func screenshotsForCheck(_ check: PPSRCheck) -> [PPSRDebugScreenshot] {
+    func screenshotsForCheck(_ check: PPSRCheck) -> [CapturedScreenshot] {
         let ids = Set(check.screenshotIds)
         return debugScreenshots.filter { ids.contains($0.id) }
     }
