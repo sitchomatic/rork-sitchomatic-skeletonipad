@@ -62,7 +62,7 @@
 			membershipExceptions = (
 				Info.plist,
 			);
-			target = XX3EF90E44253091710094XX /* SitchomaticWidget */;
+			target = XX3EF90E44253091710094XX /* SitchomaticOnRoids */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
@@ -150,9 +150,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		105FC5792E9EAD3100EA8BCF /* Sitchomatic */ = {
+		105FC5792E9EAD3100EA8BCF /* SitchomaticOnRoids */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 105FC59D2E9EAD3200EA8BCF /* Build configuration list for PBXNativeTarget "Sitchomatic" */;
+			buildConfigurationList = 105FC59D2E9EAD3200EA8BCF /* Build configuration list for PBXNativeTarget "SitchomaticOnRoids" */;
 			buildPhases = (
 				105FC5762E9EAD3100EA8BCF /* Sources */,
 				105FC5772E9EAD3100EA8BCF /* Frameworks */,
@@ -167,17 +167,17 @@
 			fileSystemSynchronizedGroups = (
 				105FC57C2E9EAD3100EA8BCF /* Sitchomatic */,
 			);
-			name = Sitchomatic;
+			name = SitchomaticOnRoids;
 			packageProductDependencies = (
 				XXEE1CB1627E13D5F0A46EXX /* CoreXLSX */,
 			);
-			productName = Sitchomatic;
+			productName = SitchomaticOnRoids;
 			productReference = 105FC57A2E9EAD3100EA8BCF /* Sitchomatic.app */;
 			productType = "com.apple.product-type.application";
 		};
-		105FC5882E9EAD3200EA8BCF /* SitchomaticTests */ = {
+		105FC5882E9EAD3200EA8BCF /* SitchomaticOnRoids */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 105FC5A02E9EAD3200EA8BCF /* Build configuration list for PBXNativeTarget "SitchomaticTests" */;
+			buildConfigurationList = 105FC5A02E9EAD3200EA8BCF /* Build configuration list for PBXNativeTarget "SitchomaticOnRoids" */;
 			buildPhases = (
 				105FC5852E9EAD3200EA8BCF /* Sources */,
 				105FC5862E9EAD3200EA8BCF /* Frameworks */,
@@ -191,16 +191,16 @@
 			fileSystemSynchronizedGroups = (
 				105FC58C2E9EAD3200EA8BCF /* SitchomaticTests */,
 			);
-			name = SitchomaticTests;
+			name = SitchomaticOnRoids;
 			packageProductDependencies = (
 			);
-			productName = SitchomaticTests;
+			productName = SitchomaticOnRoids;
 			productReference = 105FC5892E9EAD3200EA8BCF /* SitchomaticTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
-		105FC5922E9EAD3200EA8BCF /* SitchomaticUITests */ = {
+		105FC5922E9EAD3200EA8BCF /* SitchomaticOnRoids */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 105FC5A32E9EAD3200EA8BCF /* Build configuration list for PBXNativeTarget "SitchomaticUITests" */;
+			buildConfigurationList = 105FC5A32E9EAD3200EA8BCF /* Build configuration list for PBXNativeTarget "SitchomaticOnRoids" */;
 			buildPhases = (
 				105FC58F2E9EAD3200EA8BCF /* Sources */,
 				105FC5902E9EAD3200EA8BCF /* Frameworks */,
@@ -214,16 +214,16 @@
 			fileSystemSynchronizedGroups = (
 				105FC5962E9EAD3200EA8BCF /* SitchomaticUITests */,
 			);
-			name = SitchomaticUITests;
+			name = SitchomaticOnRoids;
 			packageProductDependencies = (
 			);
-			productName = SitchomaticUITests;
+			productName = SitchomaticOnRoids;
 			productReference = 105FC5932E9EAD3200EA8BCF /* SitchomaticUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
-		XX3EF90E44253091710094XX /* SitchomaticWidget */ = {
+		XX3EF90E44253091710094XX /* SitchomaticOnRoids */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = XXE1AE403D2751F620882DXX /* Build configuration list for PBXNativeTarget "SitchomaticWidget" */;
+			buildConfigurationList = XXE1AE403D2751F620882DXX /* Build configuration list for PBXNativeTarget "SitchomaticOnRoids" */;
 			buildPhases = (
 				XXE0FD6AFA7551401BFCEBXX /* Sources */,
 				XX75B8358D2242CEB782C5XX /* Frameworks */,
@@ -233,8 +233,8 @@
 			);
 			dependencies = (
 			);
-			name = SitchomaticWidget;
-			productName = SitchomaticWidget;
+			name = SitchomaticOnRoids;
+			productName = SitchomaticOnRoids;
 			productReference = XXA3D412C462DAD7A5CD4DXX /* SitchomaticWidget.appex */;
 			productType = "com.apple.product-type.app-extension";
 			fileSystemSynchronizedGroups = (
@@ -264,7 +264,7 @@
 					};
 				};
 			};
-			buildConfigurationList = 105FC5752E9EAD3100EA8BCF /* Build configuration list for PBXProject "Sitchomatic" */;
+			buildConfigurationList = 105FC5752E9EAD3100EA8BCF /* Build configuration list for PBXProject "SitchomaticOnRoids" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -278,10 +278,10 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				105FC5792E9EAD3100EA8BCF /* Sitchomatic */,
-				105FC5882E9EAD3200EA8BCF /* SitchomaticTests */,
-				105FC5922E9EAD3200EA8BCF /* SitchomaticUITests */,
-				XX3EF90E44253091710094XX /* SitchomaticWidget */,
+				105FC5792E9EAD3100EA8BCF /* SitchomaticOnRoids */,
+				105FC5882E9EAD3200EA8BCF /* SitchomaticOnRoids */,
+				105FC5922E9EAD3200EA8BCF /* SitchomaticOnRoids */,
+				XX3EF90E44253091710094XX /* SitchomaticOnRoids */,
 			);
 			packageReferences = (
 				XX461D6B922D577012C142XX /* XCRemoteSwiftPackageReference "CoreXLSX" */,
@@ -354,17 +354,17 @@
 /* Begin PBXTargetDependency section */
 		105FC58B2E9EAD3200EA8BCF /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = 105FC5792E9EAD3100EA8BCF /* Sitchomatic */;
+			target = 105FC5792E9EAD3100EA8BCF /* SitchomaticOnRoids */;
 			targetProxy = 105FC58A2E9EAD3200EA8BCF /* PBXContainerItemProxy */;
 		};
 		105FC5952E9EAD3200EA8BCF /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = 105FC5792E9EAD3100EA8BCF /* Sitchomatic */;
+			target = 105FC5792E9EAD3100EA8BCF /* SitchomaticOnRoids */;
 			targetProxy = 105FC5942E9EAD3200EA8BCF /* PBXContainerItemProxy */;
 		};
 		XXFA8E20FF73054FAA8E11XX /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = XX3EF90E44253091710094XX /* SitchomaticWidget */;
+			target = XX3EF90E44253091710094XX /* SitchomaticOnRoids */;
 			targetProxy = XX24BB9A3233188528A96AXX /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
@@ -700,7 +700,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		105FC5752E9EAD3100EA8BCF /* Build configuration list for PBXProject "Sitchomatic" */ = {
+		105FC5752E9EAD3100EA8BCF /* Build configuration list for PBXProject "SitchomaticOnRoids" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				105FC59B2E9EAD3200EA8BCF /* Debug */,
@@ -709,7 +709,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		105FC59D2E9EAD3200EA8BCF /* Build configuration list for PBXNativeTarget "Sitchomatic" */ = {
+		105FC59D2E9EAD3200EA8BCF /* Build configuration list for PBXNativeTarget "SitchomaticOnRoids" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				105FC59E2E9EAD3200EA8BCF /* Debug */,
@@ -718,7 +718,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		105FC5A02E9EAD3200EA8BCF /* Build configuration list for PBXNativeTarget "SitchomaticTests" */ = {
+		105FC5A02E9EAD3200EA8BCF /* Build configuration list for PBXNativeTarget "SitchomaticOnRoids" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				105FC5A12E9EAD3200EA8BCF /* Debug */,
@@ -727,7 +727,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		105FC5A32E9EAD3200EA8BCF /* Build configuration list for PBXNativeTarget "SitchomaticUITests" */ = {
+		105FC5A32E9EAD3200EA8BCF /* Build configuration list for PBXNativeTarget "SitchomaticOnRoids" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				105FC5A42E9EAD3200EA8BCF /* Debug */,
@@ -736,7 +736,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		XXE1AE403D2751F620882DXX /* Build configuration list for PBXNativeTarget "SitchomaticWidget" */ = {
+		XXE1AE403D2751F620882DXX /* Build configuration list for PBXNativeTarget "SitchomaticOnRoids" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				XXDB1124C5D8D652F99983XX /* Debug */,
