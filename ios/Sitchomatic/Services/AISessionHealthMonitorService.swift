@@ -380,6 +380,11 @@ class AISessionHealthMonitorService {
     var totalRunHealthAnalyses: Int { store.totalRunHealthAnalyses }
     var runHealthDecisionBreakdown: [String: Int] { store.runHealthDecisionCounts }
 
+    // Backwards-compatibility aliases for callers that used AIRunHealthAnalyzerTool
+    var auditLog: [RunHealthAuditEntry] { runHealthAuditLog }
+    var totalAnalyses: Int { totalRunHealthAnalyses }
+    var decisionBreakdown: [String: Int] { runHealthDecisionBreakdown }
+
     func analyzeRunHealth(input: RunHealthInput) async -> RunHealthResult {
         isAnalyzingRunHealth = true
         defer { isAnalyzingRunHealth = false }
@@ -466,7 +471,7 @@ class AISessionHealthMonitorService {
             "elapsedMs": input.elapsedMs,
             "screenshotAvailable": input.screenshotAvailable,
             "currentOutcome": input.currentOutcome ?? "unknown",
-            "recentLogs": input.logs.suffix(15),
+            "recentLogs": Array(input.logs.suffix(15)),
             "heuristicDecision": heuristicFallback.decision.rawValue,
             "heuristicConfidence": String(format: "%.2f", heuristicFallback.confidence),
         ]

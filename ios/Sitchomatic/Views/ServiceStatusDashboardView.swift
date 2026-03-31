@@ -97,7 +97,9 @@ struct ServiceStatusDashboardView: View {
                 title: "On-Device AI",
                 status: onDeviceAI.isAvailable ? "AVAILABLE" : "FALLBACK",
                 statusColor: onDeviceAI.isAvailable ? .green : .orange,
-                detail: "Grok: \(GrokAISetup.isConfigured ? "configured" : "not configured")"
+                detail: onDeviceAI.isAvailable
+                    ? "Grok: \(GrokAISetup.isConfigured ? "✓" : "✗") · Apple: \(onDeviceAI.appleModelStatus)"
+                    : "Grok: not configured · Apple: unavailable"
             )
         } header: {
             Label("AI Services", systemImage: "brain")

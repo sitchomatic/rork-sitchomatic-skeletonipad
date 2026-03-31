@@ -69,6 +69,7 @@ class AICustomToolsCoordinator {
     private var store: CoordinatorStore
 
     let sessionHealthMonitor = AISessionHealthMonitorService.shared
+    var runHealthAnalyzer: AISessionHealthMonitorService { sessionHealthMonitor }
     let checkpointVerifier = AICheckpointVerificationTool.shared
     let batchInsightTuning = AIBatchInsightTuningTool.shared
 
