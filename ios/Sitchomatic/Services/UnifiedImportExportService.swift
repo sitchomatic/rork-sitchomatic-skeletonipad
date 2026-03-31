@@ -284,7 +284,7 @@ class UnifiedImportExportService {
         var valid: [LoginCredentialImport] = []
         var errors: [String] = []
         guard let emailRegex = try? Regex(#"^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$"#) else {
-            return ([], ["Invalid email validation pattern"])
+            return ([], ["Internal error: invalid email validation pattern"])
         }
 
         for (index, item) in imports.enumerated() {
