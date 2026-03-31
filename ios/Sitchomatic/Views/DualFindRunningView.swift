@@ -42,7 +42,7 @@ struct DualFindRunningView: View {
             ShareSheetView(items: [text])
         }
         .sheet(isPresented: $showLiveFeed) {
-            DualFindLiveFeedView(vm: vm)
+            UnifiedScreenshotFeedView()
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
                 .presentationContentInteraction(.scrolls)

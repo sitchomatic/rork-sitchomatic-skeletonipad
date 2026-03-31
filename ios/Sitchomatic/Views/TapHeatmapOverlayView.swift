@@ -3,7 +3,7 @@ import UIKit
 
 struct TapHeatmapOverlayView: View {
     let vm: LoginViewModel
-    @State private var selectedScreenshot: PPSRDebugScreenshot?
+    @State private var selectedScreenshot: CapturedScreenshot?
     @State private var heatmapData: TapHeatmapData?
     @State private var isAnalyzing: Bool = false
     @State private var showOCR: Bool = true
@@ -320,7 +320,7 @@ struct TapHeatmapOverlayView: View {
         .clipShape(.rect(cornerRadius: 12))
     }
 
-    private func analyzeScreenshot(_ screenshot: PPSRDebugScreenshot) {
+    private func analyzeScreenshot(_ screenshot: CapturedScreenshot) {
         selectedScreenshot = screenshot
         isAnalyzing = true
         analysisScreenshot = screenshot.image
@@ -445,7 +445,7 @@ struct DetectionElementRow: View {
 }
 
 struct HeatmapScreenshotPickerCard: View {
-    let screenshot: PPSRDebugScreenshot
+    let screenshot: CapturedScreenshot
     let isAnalyzing: Bool
 
     var body: some View {

@@ -168,7 +168,7 @@ struct LoginMoreMenuView: View {
         if vm.debugMode {
             Section("Debug") {
                 NavigationLink {
-                    LoginDebugScreenshotsView(vm: vm)
+                    UnifiedScreenshotFeedView()
                 } label: {
                     HStack(spacing: 12) {
                         Image(systemName: "ladybug.fill")

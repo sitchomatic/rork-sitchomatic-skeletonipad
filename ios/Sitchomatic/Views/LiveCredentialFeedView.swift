@@ -4,23 +4,23 @@ struct LiveCredentialFeedView: View {
     @State private var screenshotManager = UnifiedScreenshotManager.shared
     @State private var selectedCredential: String?
     @State private var autoRefresh: Bool = true
-    @State private var fullScreenImage: UnifiedScreenshot?
+    @State private var fullScreenImage: CapturedScreenshot?
 
     private let maxEmailDisplayLength = 20
 
     private var credentialEmails: [String] {
-        Array(Set(screenshotManager.screenshots.map(\.credentialEmail)))
+        Array(Set(screenshotManager.screenshots.map(\.email)))
             .sorted()
     }
 
-    private var filteredScreenshots: [UnifiedScreenshot] {
+    private var filteredScreenshots: [CapturedScreenshot] {
         guard let email = selectedCredential else {
             return screenshotManager.screenshots
         }
-        return screenshotManager.screenshots.filter { $0.credentialEmail == email }
+        return screenshotManager.screenshots.filter { $0.email == email }
     }
 
-    private var latestScreenshot: UnifiedScreenshot? {
+    private var latestScreenshot: CapturedScreenshot? {
         filteredScreenshots.first
     }
 
@@ -62,7 +62,7 @@ struct LiveCredentialFeedView: View {
                     selectedCredential = nil
                 }
                 ForEach(credentialEmails, id: \.self) { email in
-                    let count = screenshotManager.screenshots.filter { $0.credentialEmail == email }.count
+                    let count = screenshotManager.screenshots.filter { $0.email == email }.count
                     chipButton(label: "\(email.prefix(maxEmailDisplayLength))… (\(count))", isSelected: selectedCredential == email) {
                         selectedCredential = email
                     }
@@ -137,8 +137,8 @@ struct LiveCredentialFeedView: View {
                 }
                 .padding(.horizontal)
 
-                if !latest.credentialEmail.isEmpty {
-                    Text(latest.credentialEmail)
+                if !latest.email.isEmpty {
+                    Text(latest.email)
                         .font(.system(.caption2, design: .monospaced))
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
@@ -167,7 +167,7 @@ struct LiveCredentialFeedView: View {
         }
     }
 
-    private func screenshotTile(_ screenshot: UnifiedScreenshot) -> some View {
+    private func screenshotTile(_ screenshot: CapturedScreenshot) -> some View {
         VStack(spacing: 4) {
             Image(uiImage: screenshot.displayImage)
                 .resizable()
@@ -213,7 +213,7 @@ struct LiveCredentialFeedView: View {
 
     // MARK: - Full Screen Viewer
 
-    private func fullScreenViewer(_ screenshot: UnifiedScreenshot) -> some View {
+    private func fullScreenViewer(_ screenshot: CapturedScreenshot) -> some View {
         VStack(spacing: 0) {
             Image(uiImage: screenshot.fullImage)
                 .resizable()
@@ -233,7 +233,7 @@ struct LiveCredentialFeedView: View {
                         .clipShape(Capsule())
                 }
 
-                Text(screenshot.credentialEmail)
+                Text(screenshot.email)
                     .font(.system(.caption, design: .monospaced))
                     .foregroundStyle(.secondary)
 

@@ -445,7 +445,7 @@ struct PPSRSettingsView: View {
 
             if vm.debugMode {
                 NavigationLink {
-                    PPSRDebugScreenshotsView(vm: vm)
+                    UnifiedScreenshotFeedView()
                 } label: {
                     HStack {
                         Image(systemName: "photo.stack").foregroundStyle(.orange)
