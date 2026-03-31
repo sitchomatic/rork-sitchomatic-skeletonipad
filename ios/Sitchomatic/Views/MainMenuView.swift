@@ -97,7 +97,7 @@ struct MainMenuView: View {
                             slimButton(
                                 title: "Session Monitor",
                                 subtitle: "Screenshots + logs",
-                                icon: "rectangle.split.2x1",
+                                icon: "rectangle.split.2x1.fill",
                                 color: .indigo,
                                 mode: .sessionMonitor
                             )
@@ -105,7 +105,7 @@ struct MainMenuView: View {
                                 title: "IP Score Test",
                                 subtitle: "20× concurrent",
                                 icon: "network.badge.shield.half.filled",
-                                color: .blue,
+                                color: Color(red: 0.35, green: 0.45, blue: 0.95),
                                 mode: .ipScoreTest
                             )
                         }
