@@ -189,6 +189,7 @@ struct MainMenuView: View {
         .onDisappear {
             animateIn = false
         }
+        .sensoryFeedback(.selection, trigger: activeMode)
     }
 
     // MARK: - Slim Button
@@ -239,7 +240,6 @@ struct MainMenuView: View {
         .buttonStyle(.plain)
         .opacity(animateIn ? (canEnterModes ? 1 : 0.35) : 0)
         .allowsHitTesting(canEnterModes)
-        .sensoryFeedback(.selection, trigger: activeMode == mode)
     }
 
     // MARK: - Section Header
