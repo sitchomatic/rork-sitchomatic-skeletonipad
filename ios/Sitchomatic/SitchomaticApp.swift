@@ -183,7 +183,7 @@ struct SitchomaticApp: App {
                     monitor.onMemoryWarning {
                         DebugLogger.shared.handleMemoryPressure()
 
-                        ScreenshotCacheService.shared.setMaxCacheCounts(memory: 10, disk: 200)
+                        ScreenshotCache.shared.setMaxCacheCounts(memory: 10, disk: 200)
                         LoginViewModel.shared.handleMemoryPressure()
                         LoginViewModel.shared.trimAttemptsIfNeeded()
                         PPSRAutomationViewModel.shared.handleMemoryPressure()

@@ -63,7 +63,7 @@ final class MemoryPressureMonitor {
 
         if tier >= .severe {
             DebugLogger.shared.log("MemoryMonitor: SEVERE tier — additional aggressive cleanup", category: .system, level: .critical)
-            ScreenshotCacheService.shared.clearAll()
+            ScreenshotCache.shared.clearAll()
             URLCache.shared.removeAllCachedResponses()
             URLCache.shared.memoryCapacity = 0
 

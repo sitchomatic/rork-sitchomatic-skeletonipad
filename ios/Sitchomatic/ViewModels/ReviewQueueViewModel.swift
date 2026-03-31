@@ -9,7 +9,7 @@ class ReviewQueueViewModel {
     nonisolated(unsafe) static let shared = ReviewQueueViewModel()
 
     private let service = ReviewQueueService.shared
-    private let screenshotCache = ScreenshotCacheService.shared
+    private let screenshotCache = ScreenshotCache.shared
 
     var selectedFilter: ReviewFilter = .pending
     var searchText: String = ""
