@@ -53,7 +53,7 @@ nonisolated struct RunHealthStore: Codable, Sendable {
 
 @MainActor
 class AIRunHealthAnalyzerTool {
-    nonisolated(unsafe) static let shared = AIRunHealthAnalyzerTool()
+    static let shared = AIRunHealthAnalyzerTool()
 
     private let logger = DebugLogger.shared
     private let persistKey = "AIRunHealthAnalyzerTool_v1"

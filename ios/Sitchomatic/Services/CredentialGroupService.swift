@@ -4,7 +4,7 @@ import Observation
 @Observable
 @MainActor
 class CredentialGroupService {
-    nonisolated(unsafe) static let shared = CredentialGroupService()
+    static let shared = CredentialGroupService()
 
     private let persistKey = "credential_groups_v1"
     private let logger = DebugLogger.shared

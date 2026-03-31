@@ -4,7 +4,7 @@ import Observation
 @Observable
 @MainActor
 class BlacklistService {
-    nonisolated(unsafe) static let shared = BlacklistService()
+    static let shared = BlacklistService()
 
     private(set) var blacklistedEmails: [BlacklistEntry] = []
     var autoExcludeBlacklist: Bool = true {

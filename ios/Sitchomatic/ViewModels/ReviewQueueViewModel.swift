@@ -6,7 +6,7 @@ import UIKit
 @Observable
 @MainActor
 class ReviewQueueViewModel {
-    nonisolated(unsafe) static let shared = ReviewQueueViewModel()
+    static let shared = ReviewQueueViewModel()
 
     private let service = ReviewQueueService.shared
     private let screenshotCache = ScreenshotCache.shared

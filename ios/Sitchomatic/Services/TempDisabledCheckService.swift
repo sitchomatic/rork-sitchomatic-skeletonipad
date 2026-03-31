@@ -5,7 +5,7 @@ import UIKit
 @Observable
 @MainActor
 class TempDisabledCheckService {
-    nonisolated(unsafe) static let shared = TempDisabledCheckService()
+    static let shared = TempDisabledCheckService()
 
     static let bgTaskIdentifier = "app.rork.dual-mode-carcheck-app.tempdisabled"
 

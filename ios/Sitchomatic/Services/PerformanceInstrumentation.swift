@@ -5,7 +5,7 @@ import os.signpost
 
 @MainActor
 final class PerformanceInstrumentation {
-    nonisolated(unsafe) static let shared = PerformanceInstrumentation()
+    static let shared = PerformanceInstrumentation()
 
     private let logger = DebugLogger.shared
 
@@ -16,7 +16,7 @@ final class PerformanceInstrumentation {
     private var subsystemMemory: [String: Double] = [:]
 
     private init() {
-        logger.log("PerformanceInstrumentation: initialized with os_signpost support", category: .performance, level: .info)
+        logger.log("PerformanceInstrumentation: initialized with os_signpost support", category: .system, level: .info)
     }
 
     // MARK: - Task Naming (Swift 6.2)
@@ -42,12 +42,10 @@ final class PerformanceInstrumentation {
         operation: @escaping @Sendable () async throws -> T
     ) -> Task<T, Error> {
         Task.detached(priority: priority) {
-            defer {
-                await self.logTaskCompletion(name: name)
-            }
-
             await self.logTaskStart(name: name)
-            return try await operation()
+            let result = try await operation()
+            await self.logTaskCompletion(name: name)
+            return result
         }
     }
 
@@ -67,7 +65,7 @@ final class PerformanceInstrumentation {
     }
 
     private func cleanupWebView(id: String) async {
-        logger.log("PerformanceInstrumentation: cleaning up WebView \(id.prefix(8))", category: .performance, level: .debug)
+        logger.log("PerformanceInstrumentation: cleaning up WebView \(id.prefix(8))", category: .system, level: .debug)
 
         // Cleanup operations
         // - Release WKWebView
@@ -129,13 +127,13 @@ final class PerformanceInstrumentation {
     func trackMemoryAllocation(subsystem: String, sizeMB: Double) {
         subsystemMemory[subsystem, default: 0] += sizeMB
 
-        logger.log("PerformanceInstrumentation: \(subsystem) allocated \(Int(sizeMB))MB (total: \(Int(subsystemMemory[subsystem] ?? 0))MB)", category: .performance, level: .debug)
+        logger.log("PerformanceInstrumentation: \(subsystem) allocated \(Int(sizeMB))MB (total: \(Int(subsystemMemory[subsystem] ?? 0))MB)", category: .system, level: .debug)
     }
 
     func trackMemoryDeallocation(subsystem: String, sizeMB: Double) {
         subsystemMemory[subsystem, default: 0] -= sizeMB
 
-        logger.log("PerformanceInstrumentation: \(subsystem) deallocated \(Int(sizeMB))MB (total: \(Int(subsystemMemory[subsystem] ?? 0))MB)", category: .performance, level: .debug)
+        logger.log("PerformanceInstrumentation: \(subsystem) deallocated \(Int(sizeMB))MB (total: \(Int(subsystemMemory[subsystem] ?? 0))MB)", category: .system, level: .debug)
     }
 
     func getMemoryBySubsystem() -> [String: Double] {
@@ -144,18 +142,18 @@ final class PerformanceInstrumentation {
 
     func resetMemoryTracking() {
         subsystemMemory.removeAll()
-        logger.log("PerformanceInstrumentation: memory tracking reset", category: .performance, level: .info)
+        logger.log("PerformanceInstrumentation: memory tracking reset", category: .system, level: .info)
     }
 
     // MARK: - Private Helpers
 
     private func logTaskStart(name: String) {
-        logger.log("PerformanceInstrumentation: task '\(name)' started", category: .performance, level: .debug)
+        logger.log("PerformanceInstrumentation: task '\(name)' started", category: .system, level: .debug)
         signpostEvent("Task Start", name)
     }
 
     private func logTaskCompletion(name: String) {
-        logger.log("PerformanceInstrumentation: task '\(name)' completed", category: .performance, level: .debug)
+        logger.log("PerformanceInstrumentation: task '\(name)' completed", category: .system, level: .debug)
         signpostEvent("Task Complete", name)
     }
 }

@@ -4,7 +4,7 @@ import WebKit
 
 @MainActor
 class DualSiteWorkerService {
-    nonisolated(unsafe) static let shared = DualSiteWorkerService()
+    static let shared = DualSiteWorkerService()
 
     private let logger = DebugLogger.shared
     private let networkFactory = NetworkSessionFactory.shared

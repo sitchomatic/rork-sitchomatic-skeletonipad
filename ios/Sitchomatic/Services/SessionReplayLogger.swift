@@ -23,7 +23,7 @@ nonisolated struct SessionReplayLog: Codable, Sendable {
 
 @MainActor
 class SessionReplayLogger {
-    nonisolated(unsafe) static let shared = SessionReplayLogger()
+    static let shared = SessionReplayLogger()
 
     private var activeSessions: [String: ActiveReplay] = [:]
     private let logger = DebugLogger.shared

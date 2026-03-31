@@ -44,7 +44,7 @@ nonisolated struct ConcurrencyPreset: Sendable {
 
 @MainActor
 final class ConcurrencyGovernorV2 {
-    nonisolated(unsafe) static let shared = ConcurrencyGovernorV2()
+    static let shared = ConcurrencyGovernorV2()
 
     private let logger = DebugLogger.shared
 

@@ -4,7 +4,7 @@ import Observation
 @Observable
 @MainActor
 class LoginURLRotationService {
-    nonisolated(unsafe) static let shared = LoginURLRotationService()
+    static let shared = LoginURLRotationService()
 
     var isIgnitionMode: Bool = false {
         didSet { persistState() }

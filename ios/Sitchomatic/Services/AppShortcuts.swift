@@ -2,9 +2,9 @@ import AppIntents
 import SwiftUI
 
 nonisolated struct CheckStatsIntent: AppIntent {
-    static var title: LocalizedStringResource = "Check Stats"
-    static var description: IntentDescription = "View current card and credential statistics"
-    static var openAppWhenRun: Bool = true
+    static let title: LocalizedStringResource = "Check Stats"
+    static let description: IntentDescription = "View current card and credential statistics"
+    static let openAppWhenRun: Bool = true
 
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
@@ -20,9 +20,9 @@ nonisolated struct CheckStatsIntent: AppIntent {
 }
 
 nonisolated struct OpenPPSRModeIntent: AppIntent {
-    static var title: LocalizedStringResource = "Open PPSR Mode"
-    static var description: IntentDescription = "Open the PPSR card testing mode"
-    static var openAppWhenRun: Bool = true
+    static let title: LocalizedStringResource = "Open PPSR Mode"
+    static let description: IntentDescription = "Open the PPSR card testing mode"
+    static let openAppWhenRun: Bool = true
 
     @MainActor
     func perform() async throws -> some IntentResult {
@@ -32,9 +32,9 @@ nonisolated struct OpenPPSRModeIntent: AppIntent {
 }
 
 nonisolated struct OpenLoginTestingIntent: AppIntent {
-    static var title: LocalizedStringResource = "Open Login Testing"
-    static var description: IntentDescription = "Open the unified login testing mode (JoePoint + Ignition)"
-    static var openAppWhenRun: Bool = true
+    static let title: LocalizedStringResource = "Open Login Testing"
+    static let description: IntentDescription = "Open the unified login testing mode (JoePoint + Ignition)"
+    static let openAppWhenRun: Bool = true
 
     @MainActor
     func perform() async throws -> some IntentResult {
@@ -44,9 +44,9 @@ nonisolated struct OpenLoginTestingIntent: AppIntent {
 }
 
 nonisolated struct OpenNordConfigIntent: AppIntent {
-    static var title: LocalizedStringResource = "Open NordLynx Config"
-    static var description: IntentDescription = "Open the NordLynx VPN config generator"
-    static var openAppWhenRun: Bool = true
+    static let title: LocalizedStringResource = "Open NordLynx Config"
+    static let description: IntentDescription = "Open the NordLynx VPN config generator"
+    static let openAppWhenRun: Bool = true
 
     @MainActor
     func perform() async throws -> some IntentResult {

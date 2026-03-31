@@ -2,7 +2,7 @@ import Foundation
 
 @MainActor
 class LoginCalibrationService {
-    nonisolated(unsafe) static let shared = LoginCalibrationService()
+    static let shared = LoginCalibrationService()
 
     private let persistKey = "LoginCalibrationData_v2"
     private let logger = DebugLogger.shared

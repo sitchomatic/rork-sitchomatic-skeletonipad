@@ -6,7 +6,7 @@ import UIKit
 
 @MainActor
 class VisionMLService {
-    nonisolated(unsafe) static let shared = VisionMLService()
+    static let shared = VisionMLService()
 
     private let logger = DebugLogger.shared
     private let ciContext = CIContext()

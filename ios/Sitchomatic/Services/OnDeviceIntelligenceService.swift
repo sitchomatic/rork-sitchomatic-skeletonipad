@@ -48,7 +48,7 @@ nonisolated struct ClassificationResult: Sendable {
 @Observable
 @MainActor
 final class OnDeviceIntelligenceService {
-    nonisolated(unsafe) static let shared = OnDeviceIntelligenceService()
+    static let shared = OnDeviceIntelligenceService()
 
     private let logger = DebugLogger.shared
     private let analysisEngine = AIAnalysisEngine.shared

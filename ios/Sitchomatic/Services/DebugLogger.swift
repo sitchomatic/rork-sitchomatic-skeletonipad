@@ -4,7 +4,7 @@ import UIKit
 
 @MainActor
 class DebugLogger {
-    nonisolated(unsafe) static let shared = DebugLogger()
+    static let shared = DebugLogger()
 
     let didChange = PassthroughSubject<Void, Never>()
     let persistence = LogPersistenceService()

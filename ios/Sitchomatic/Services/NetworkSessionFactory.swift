@@ -1,6 +1,7 @@
 import Foundation
 @preconcurrency import WebKit
 @preconcurrency import Network
+@preconcurrency import Dispatch
 
 nonisolated enum ActiveNetworkConfig: Sendable {
     case direct
@@ -40,7 +41,7 @@ nonisolated enum ActiveNetworkConfig: Sendable {
 
 @MainActor
 class NetworkSessionFactory {
-    nonisolated(unsafe) static let shared = NetworkSessionFactory()
+    static let shared = NetworkSessionFactory()
 
     private let proxyService = ProxyRotationService.shared
     private let deviceProxy = DeviceProxyService.shared
@@ -505,14 +506,14 @@ class NetworkSessionFactory {
             let endpoint = NWEndpoint.hostPort(host: NWEndpoint.Host(host), port: NWEndpoint.Port(integerLiteral: port))
             let connection = NWConnection(to: endpoint, using: .tcp)
             let queue = DispatchQueue(label: "preflight-socks5")
-            var completed = false
+            let completedBox = UnsafeSendableBox(false)
             let lock = NSLock()
 
-            func finish(_ result: Bool) {
+            @Sendable func finish(_ result: Bool) {
                 lock.lock()
                 defer { lock.unlock() }
-                guard !completed else { return }
-                completed = true
+                guard !completedBox.value else { return }
+                completedBox.value = true
                 continuation.resume(returning: result)
             }
 

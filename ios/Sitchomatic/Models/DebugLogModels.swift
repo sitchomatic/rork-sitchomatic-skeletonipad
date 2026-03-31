@@ -20,6 +20,7 @@ nonisolated enum DebugLogCategory: String, CaseIterable, Sendable, Identifiable,
     case timing = "Timing"
     case healing = "Healing"
     case flowRecorder = "Flow Recorder"
+    case ai = "AI"
 
     var id: String { rawValue }
 
@@ -44,6 +45,7 @@ nonisolated enum DebugLogCategory: String, CaseIterable, Sendable, Identifiable,
         case .timing: "stopwatch.fill"
         case .healing: "cross.circle.fill"
         case .flowRecorder: "record.circle.fill"
+        case .ai: "brain.head.profile"
         }
     }
 
@@ -68,6 +70,7 @@ nonisolated enum DebugLogCategory: String, CaseIterable, Sendable, Identifiable,
         case .timing: "orange"
         case .healing: "green"
         case .flowRecorder: "red"
+        case .ai: "purple"
         }
     }
 }

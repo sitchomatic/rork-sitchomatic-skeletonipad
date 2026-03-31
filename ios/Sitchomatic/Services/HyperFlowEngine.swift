@@ -47,7 +47,7 @@ public final class HyperFlowExecutor: @unchecked Sendable {
 @Observable
 @MainActor
 public final class WebViewPool {
-    public nonisolated(unsafe) static let shared = WebViewPool()
+    public static let shared = WebViewPool()
     public var activeViews: [UUID: WKWebView] = [:]
 
     private init() {}
@@ -153,15 +153,16 @@ public actor AutomationPairSession {
     // Shared ProcessPool via WebViewProcessPoolManager for memory efficiency.
     // Each pair keeps its own nonPersistent DataStore for cookie/storage isolation.
     let isolatedProcessPool: WKProcessPool
-    let isolatedDataStore = WKWebsiteDataStore.nonPersistent()
+    let isolatedDataStore: WKWebsiteDataStore
 
     private let allowedDomains: Set<String>
     private let logger = Logger(subsystem: "com.hyperflow.scraper", category: "Session")
 
-    public init(task: PairedTask, allowedDomains: Set<String>, processPool: WKProcessPool) {
+    public init(task: PairedTask, allowedDomains: Set<String>, processPool: WKProcessPool, dataStore: WKWebsiteDataStore) {
         self.task = task
         self.allowedDomains = allowedDomains
         self.isolatedProcessPool = processPool
+        self.isolatedDataStore = dataStore
     }
 
     public func execute() async throws {
@@ -463,7 +464,7 @@ public final class HeadlessWebViewWorker: NSObject, WKNavigationDelegate, WKScri
 /// Orchestrates PairedTasks across the engine with WebViewRecycler integration.
 @MainActor
 public final class AutomationOrchestrator {
-    public nonisolated(unsafe) static let shared = AutomationOrchestrator()
+    public static let shared = AutomationOrchestrator()
 
     private let logger = Logger(subsystem: "com.hyperflow.scraper", category: "Orchestrator")
     private let maxConcurrentPairs = DeviceCapability.performanceProfile.maxConcurrentPairs
@@ -492,7 +493,8 @@ public final class AutomationOrchestrator {
                     let pool = WebViewProcessPoolManager.shared.pool(forPairIndex: pairIndex)
                     group.addTask {
                         await MainActor.run { self.activePairCount += 1 }
-                        let session = AutomationPairSession(task: task, allowedDomains: allowedDomains, processPool: pool)
+                        let dataStore = await MainActor.run { WKWebsiteDataStore.nonPersistent() }
+                        let session = AutomationPairSession(task: task, allowedDomains: allowedDomains, processPool: pool, dataStore: dataStore)
                         do {
                             try await session.execute()
                             await MainActor.run {

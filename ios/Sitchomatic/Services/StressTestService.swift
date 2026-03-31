@@ -50,7 +50,7 @@ private nonisolated struct MemorySample: Sendable {
 @Observable
 @MainActor
 final class StressTestService {
-    nonisolated(unsafe) static let shared = StressTestService()
+    static let shared = StressTestService()
 
     // MARK: - State
 
@@ -90,7 +90,7 @@ final class StressTestService {
             guard let self else { return }
 
             let startTime = Date()
-            let memoryMonitor = MemoryMonitor.shared
+            let memoryMonitor = MemoryMonitor()
 
             // Phase 1: Ramp up
             await updatePhase("Ramping up to \(config.pairCount) pairs")

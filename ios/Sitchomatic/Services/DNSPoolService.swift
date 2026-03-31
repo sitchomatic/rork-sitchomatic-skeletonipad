@@ -125,7 +125,7 @@ nonisolated struct DoHAnswerEntry: Codable, Sendable {
 
 @MainActor
 class DNSPoolService {
-    nonisolated(unsafe) static let shared = DNSPoolService()
+    static let shared = DNSPoolService()
 
     private var serverIndex: Int = 0
     private let persistKey = "dns_pool_managed_v3"
@@ -393,7 +393,7 @@ class DNSPoolService {
         let resumed = UnsafeSendableBox(false)
 
         return await withCheckedContinuation { continuation in
-            func safeResume(_ value: DNSAnswer?) {
+            @Sendable func safeResume(_ value: DNSAnswer?) {
                 if !resumed.value {
                     resumed.value = true
                     continuation.resume(returning: value)

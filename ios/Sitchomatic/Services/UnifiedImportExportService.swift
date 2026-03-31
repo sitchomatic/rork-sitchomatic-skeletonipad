@@ -52,7 +52,7 @@ nonisolated enum ImportableItem: Sendable {
 @Observable
 @MainActor
 class UnifiedImportExportService {
-    nonisolated(unsafe) static let shared = UnifiedImportExportService()
+    static let shared = UnifiedImportExportService()
 
     let logger = DebugLogger.shared
 
@@ -146,7 +146,7 @@ class UnifiedImportExportService {
             format: resolvedFormat
         )
 
-        logger.log("Imported credentials: \(result.summary)", category: .general, level: .info, detail: nil, sessionId: nil, durationMs: nil, metadata: nil)
+        logger.log("Imported credentials: \(result.summary)", category: .system, level: .info, detail: nil, sessionId: nil, durationMs: nil, metadata: nil)
         ExportHistoryService.shared.recordExport(format: resolvedFormat.rawValue, cardCount: added.count, exportType: "credential_import")
 
         isImporting = false
@@ -212,7 +212,7 @@ class UnifiedImportExportService {
             format: resolvedFormat
         )
 
-        logger.log("Imported cards: \(result.summary)", category: .general, level: .info, detail: nil, sessionId: nil, durationMs: nil, metadata: nil)
+        logger.log("Imported cards: \(result.summary)", category: .system, level: .info, detail: nil, sessionId: nil, durationMs: nil, metadata: nil)
         ExportHistoryService.shared.recordExport(format: resolvedFormat.rawValue, cardCount: added.count, exportType: "card_import")
 
         isImporting = false

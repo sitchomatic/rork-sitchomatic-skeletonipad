@@ -3,7 +3,7 @@ import WebKit
 
 @MainActor
 class PreflightSmokeTestService {
-    nonisolated(unsafe) static let shared = PreflightSmokeTestService()
+    static let shared = PreflightSmokeTestService()
 
     private let logger = DebugLogger.shared
     private let metricsService = TaskMetricsCollectionService.shared

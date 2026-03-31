@@ -113,7 +113,7 @@ nonisolated enum NodeMavenSessionMode: String, CaseIterable, Codable, Sendable {
 @Observable
 @MainActor
 class NodeMavenService {
-    nonisolated(unsafe) static let shared = NodeMavenService()
+    static let shared = NodeMavenService()
 
     static let gatewayHost = "gate.nodemaven.com"
     static let socks5Port = 1080

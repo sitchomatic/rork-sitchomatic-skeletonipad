@@ -7,7 +7,7 @@ import Observation
 @Observable
 @MainActor
 final class BatchStateManager {
-    nonisolated(unsafe) static let shared = BatchStateManager()
+    static let shared = BatchStateManager()
 
     // MARK: - Batch State
 

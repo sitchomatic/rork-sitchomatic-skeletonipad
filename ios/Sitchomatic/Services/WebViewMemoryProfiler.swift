@@ -41,7 +41,7 @@ nonisolated struct MemoryWaterfallEntry: Sendable, Identifiable {
 @Observable
 @MainActor
 final class WebViewMemoryProfiler {
-    nonisolated(unsafe) static let shared = WebViewMemoryProfiler()
+    static let shared = WebViewMemoryProfiler()
 
     private let logger = DebugLogger.shared
 
@@ -74,7 +74,7 @@ final class WebViewMemoryProfiler {
     private var profilingTask: Task<Void, Never>?
 
     private init() {
-        logger.log("WebViewMemoryProfiler: initialized", category: .performance, level: .info)
+        logger.log("WebViewMemoryProfiler: initialized", category: .system, level: .info)
     }
 
     // MARK: - Public API
@@ -90,14 +90,14 @@ final class WebViewMemoryProfiler {
             }
         }
 
-        logger.log("WebViewMemoryProfiler: profiling started", category: .performance, level: .info)
+        logger.log("WebViewMemoryProfiler: profiling started", category: .system, level: .info)
     }
 
     func stopProfiling() {
         isProfiling = false
         profilingTask?.cancel()
         profilingTask = nil
-        logger.log("WebViewMemoryProfiler: profiling stopped", category: .performance, level: .info)
+        logger.log("WebViewMemoryProfiler: profiling stopped", category: .system, level: .info)
     }
 
     func recordWebView(id: String, estimatedMB: Double, isActive: Bool, url: String?) {
@@ -142,7 +142,7 @@ final class WebViewMemoryProfiler {
         // Check for high memory and log warnings
         let memoryProfile = DeviceCapability.performanceProfile
         if totalMB > Double(memoryProfile.memoryThresholdSoftMB) * 0.9 {
-            logger.log("WebViewMemoryProfiler: HIGH MEMORY WARNING — \(Int(totalMB))MB / \(memoryProfile.memoryThresholdSoftMB)MB", category: .performance, level: .warning)
+            logger.log("WebViewMemoryProfiler: HIGH MEMORY WARNING — \(Int(totalMB))MB / \(memoryProfile.memoryThresholdSoftMB)MB", category: .system, level: .warning)
 
             if totalMB > Double(memoryProfile.memoryThresholdHighMB) {
                 triggerEviction()
@@ -151,7 +151,7 @@ final class WebViewMemoryProfiler {
     }
 
     func triggerEviction() {
-        logger.log("WebViewMemoryProfiler: evicting screenshot cache due to memory pressure", category: .performance, level: .warning)
+        logger.log("WebViewMemoryProfiler: evicting screenshot cache due to memory pressure", category: .system, level: .warning)
         UnifiedScreenshotManager.shared.handleMemoryPressure()
         ScreenshotCache.shared.setMaxCacheCounts(memory: 10, disk: 200)
     }
@@ -160,7 +160,7 @@ final class WebViewMemoryProfiler {
         activeSnapshots.removeAll()
         waterfallHistory.removeAll()
         peakMemoryMB = 0
-        logger.log("WebViewMemoryProfiler: history cleared", category: .performance, level: .info)
+        logger.log("WebViewMemoryProfiler: history cleared", category: .system, level: .info)
     }
 
     // MARK: - Private Implementation

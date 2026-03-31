@@ -151,36 +151,7 @@ private nonisolated struct DNSCacheEntry: Sendable {
     var isExpired: Bool { Date() > expiry }
 }
 
-nonisolated struct ProxyConfig: Sendable, Hashable {
-    let id: UUID
-    let protocol: ProxyProtocol
-    let host: String
-    let port: Int
-    let username: String?
-    let password: String?
-    let configData: Data?
 
-    init(
-        protocol: ProxyProtocol,
-        host: String,
-        port: Int,
-        username: String? = nil,
-        password: String? = nil,
-        configData: Data? = nil
-    ) {
-        self.id = UUID()
-        self.protocol = `protocol`
-        self.host = host
-        self.port = port
-        self.username = username
-        self.password = password
-        self.configData = configData
-    }
-
-    var displayName: String {
-        "\(`protocol`.rawValue)://\(host):\(port)"
-    }
-}
 
 nonisolated struct ProxyHealthStatus: Sendable {
     let proxy: ProxyConfig
@@ -191,18 +162,12 @@ nonisolated struct ProxyHealthStatus: Sendable {
     let successRate: Double
 }
 
-nonisolated struct DNSCacheEntry: Sendable {
-    let host: String
-    let resolvedIP: String
-    let cachedAt: Date
-    let expiresAt: Date
-}
 
 // MARK: - Proxy Orchestrator
 
 @MainActor
 final class ProxyOrchestrator {
-    nonisolated(unsafe) static let shared = ProxyOrchestrator()
+    static let shared = ProxyOrchestrator()
 
     private let logger = DebugLogger.shared
 
@@ -228,14 +193,14 @@ final class ProxyOrchestrator {
     private var averageLatencyMs: Double = 0
 
     private init() {
-        logger.log("ProxyOrchestrator: initialized", category: .networking, level: .info)
+        logger.log("ProxyOrchestrator: initialized", category: .network, level: .info)
     }
 
     // MARK: - Public API
 
     func configure(proxies: [ProxyConfig]) {
         availableProxies = proxies
-        logger.log("ProxyOrchestrator: configured with \(proxies.count) proxies", category: .networking, level: .info)
+        logger.log("ProxyOrchestrator: configured with \(proxies.count) proxies", category: .network, level: .info)
 
         // Initialize health status for all proxies
         for proxy in proxies {
@@ -263,14 +228,14 @@ final class ProxyOrchestrator {
             consecutiveFailures: 0,
             successRate: 1.0
         )
-        logger.log("ProxyOrchestrator: added proxy \(proxy.displayName)", category: .networking, level: .info)
+        logger.log("ProxyOrchestrator: added proxy \(proxy.displayString)", category: .network, level: .info)
     }
 
     func removeProxy(id: UUID) {
         availableProxies.removeAll { $0.id == id }
         healthStatus.removeValue(forKey: id)
         activeConnections.removeValue(forKey: id)
-        logger.log("ProxyOrchestrator: removed proxy \(id.uuidString.prefix(8))", category: .networking, level: .info)
+        logger.log("ProxyOrchestrator: removed proxy \(id.uuidString.prefix(8))", category: .network, level: .info)
     }
 
     func getHealthyProxy(preferredProtocol: ProxyProtocol? = nil) -> ProxyConfig? {
@@ -280,23 +245,12 @@ final class ProxyOrchestrator {
         }
 
         guard !healthy.isEmpty else {
-            logger.log("ProxyOrchestrator: no healthy proxies available", category: .networking, level: .warning)
+            logger.log("ProxyOrchestrator: no healthy proxies available", category: .network, level: .warning)
             return nil
         }
 
-        // Filter by preferred protocol if specified
-        let filtered = if let preferredProtocol {
-            healthy.filter { $0.protocol == preferredProtocol }
-        } else {
-            healthy
-        }
-
-        guard !filtered.isEmpty else {
-            return healthy.randomElement()
-        }
-
         // Select proxy with best health metrics
-        return filtered.sorted { a, b in
+        return healthy.sorted { a, b in
             guard let statusA = healthStatus[a.id], let statusB = healthStatus[b.id] else { return false }
             // Prioritize by success rate, then latency
             if abs(statusA.successRate - statusB.successRate) > 0.1 {
@@ -309,12 +263,12 @@ final class ProxyOrchestrator {
     func resolveDNS(host: String) async -> String? {
         // Check cache first
         if let cached = dnsCache[host], cached.expiresAt > Date() {
-            logger.log("ProxyOrchestrator: DNS cache HIT for \(host) → \(cached.resolvedIP)", category: .networking, level: .debug)
+            logger.log("ProxyOrchestrator: DNS cache HIT for \(host) → \(cached.resolvedIP)", category: .network, level: .debug)
             return cached.resolvedIP
         }
 
         // Resolve DNS
-        logger.log("ProxyOrchestrator: resolving DNS for \(host)", category: .networking, level: .debug)
+        logger.log("ProxyOrchestrator: resolving DNS for \(host)", category: .network, level: .debug)
 
         do {
             guard let url = URL(string: "https://\(host)") else { return nil }
@@ -331,7 +285,9 @@ final class ProxyOrchestrator {
                         if let path = connection.currentPath, let endpoint = path.remoteEndpoint {
                             if case .hostPort(let host, _) = endpoint {
                                 let ip = "\(host)"
-                                self.cacheDNS(host: hostString, ip: ip)
+                                Task { @MainActor in
+                                    self.cacheDNS(host: hostString, ip: ip)
+                                }
                                 connection.cancel()
                                 continuation.resume(returning: ip)
                                 return
@@ -358,7 +314,7 @@ final class ProxyOrchestrator {
     }
 
     func prewarmConnections(count: Int = 5) async {
-        logger.log("ProxyOrchestrator: prewarming \(count) connections", category: .networking, level: .info)
+        logger.log("ProxyOrchestrator: prewarming \(count) connections", category: .network, level: .info)
 
         let proxiesToWarm = Array(availableProxies.prefix(count))
 
@@ -370,7 +326,7 @@ final class ProxyOrchestrator {
             }
         }
 
-        logger.log("ProxyOrchestrator: prewarming complete", category: .networking, level: .info)
+        logger.log("ProxyOrchestrator: prewarming complete", category: .network, level: .info)
     }
 
     func getStats() -> (total: Int, healthy: Int, avgLatency: Double, successRate: Double) {
@@ -426,7 +382,7 @@ final class ProxyOrchestrator {
     func stopHealthMonitoring() {
         healthCheckTask?.cancel()
         healthCheckTask = nil
-        logger.log("ProxyOrchestrator: health monitoring stopped", category: .networking, level: .info)
+        logger.log("ProxyOrchestrator: health monitoring stopped", category: .network, level: .info)
     }
 
     // MARK: - Private Implementation
@@ -441,7 +397,7 @@ final class ProxyOrchestrator {
             }
         }
 
-        logger.log("ProxyOrchestrator: health monitoring started (interval: \(Int(healthCheckInterval))s)", category: .networking, level: .info)
+        logger.log("ProxyOrchestrator: health monitoring started (interval: \(Int(healthCheckInterval))s)", category: .network, level: .info)
     }
 
     private func performHealthChecks() async {
@@ -467,23 +423,19 @@ final class ProxyOrchestrator {
         recordConnectionResult(proxyId: proxy.id, success: success, latencyMs: max(latencyMs, 1))
 
         if !success {
-            logger.log("ProxyOrchestrator: health check FAILED for \(proxy.displayName)", category: .networking, level: .warning)
+            logger.log("ProxyOrchestrator: health check FAILED for \(proxy.displayString)", category: .network, level: .warning)
         }
     }
 
     private func cacheDNS(host: String, ip: String) {
-        let now = Date()
         let entry = DNSCacheEntry(
-            host: host,
             resolvedIP: ip,
-            cachedAt: now,
-            expiresAt: now.addingTimeInterval(dnsCacheTTL)
+            expiry: Date().addingTimeInterval(dnsCacheTTL)
         )
         dnsCache[host] = entry
 
-        // Cleanup expired entries
         if dnsCache.count > 100 {
-            dnsCache = dnsCache.filter { $0.value.expiresAt > now }
+            dnsCache = dnsCache.filter { !$0.value.isExpired }
         }
     }
 }

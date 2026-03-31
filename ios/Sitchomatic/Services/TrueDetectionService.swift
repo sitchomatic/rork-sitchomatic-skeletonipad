@@ -4,7 +4,7 @@ import UIKit
 
 @MainActor
 class TrueDetectionService {
-    nonisolated(unsafe) static let shared = TrueDetectionService()
+    static let shared = TrueDetectionService()
 
     private let logger = DebugLogger.shared
 

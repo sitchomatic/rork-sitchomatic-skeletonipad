@@ -96,7 +96,7 @@ nonisolated struct URLOptimizerStore: Codable, Sendable {
 
 @MainActor
 class AILoginURLOptimizerService {
-    nonisolated(unsafe) static let shared = AILoginURLOptimizerService()
+    static let shared = AILoginURLOptimizerService()
 
     private let logger = DebugLogger.shared
     private let persistenceKey = "AILoginURLOptimizerData_v1"

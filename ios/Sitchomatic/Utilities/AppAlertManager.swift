@@ -40,7 +40,7 @@ struct AppAlert: Identifiable {
 @Observable
 @MainActor
 final class AppAlertManager {
-    nonisolated(unsafe) static let shared = AppAlertManager()
+    static let shared = AppAlertManager()
 
     private(set) var alerts: [AppAlert] = []
     private let maxAlerts: Int = 50

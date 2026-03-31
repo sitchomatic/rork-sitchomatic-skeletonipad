@@ -5,7 +5,7 @@ import UIKit
 @Observable
 @MainActor
 class EvidenceBundleViewModel {
-    nonisolated(unsafe) static let shared = EvidenceBundleViewModel()
+    static let shared = EvidenceBundleViewModel()
 
     private let service = EvidenceBundleService.shared
     private let screenshotCache = ScreenshotCache.shared

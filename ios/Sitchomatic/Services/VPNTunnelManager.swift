@@ -1,6 +1,7 @@
 import Foundation
 @preconcurrency import NetworkExtension
 @preconcurrency import Network
+@preconcurrency import Dispatch
 import Observation
 
 nonisolated enum VPNTunnelStatus: String, Sendable {
@@ -54,7 +55,7 @@ nonisolated struct VPNConnectionEvent: Identifiable, Sendable {
 @Observable
 @MainActor
 class VPNTunnelManager {
-    nonisolated(unsafe) static let shared = VPNTunnelManager()
+    static let shared = VPNTunnelManager()
 
     private(set) var status: VPNTunnelStatus = .disconnected
     private(set) var connectedSince: Date?

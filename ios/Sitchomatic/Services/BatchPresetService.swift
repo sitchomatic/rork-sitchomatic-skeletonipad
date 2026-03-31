@@ -2,7 +2,7 @@ import Foundation
 
 @MainActor
 class BatchPresetService {
-    nonisolated(unsafe) static let shared = BatchPresetService()
+    static let shared = BatchPresetService()
 
     private let storageKey = "batch_presets_v1"
 

@@ -64,7 +64,7 @@ nonisolated struct NordRegionPool: Sendable {
 @Observable
 @MainActor
 class NordServerIntelligence {
-    nonisolated(unsafe) static let shared = NordServerIntelligence()
+    static let shared = NordServerIntelligence()
 
     private(set) var regionPools: [Int: NordRegionPool] = [:]
     private(set) var lastGlobalRefresh: Date?
@@ -393,14 +393,14 @@ class NordServerIntelligence {
             )
             let connection = NWConnection(to: endpoint, using: .tcp)
             let queue = DispatchQueue(label: "nord-intel-validate.\(UUID().uuidString.prefix(6))")
-            var completed = false
+            let completedBox = UnsafeSendableBox(false)
             let lock = NSLock()
 
-            func finish(_ result: (alive: Bool, validated: Bool)) {
+            @Sendable func finish(_ result: (alive: Bool, validated: Bool)) {
                 lock.lock()
                 defer { lock.unlock() }
-                guard !completed else { return }
-                completed = true
+                guard !completedBox.value else { return }
+                completedBox.value = true
                 continuation.resume(returning: result)
             }
 

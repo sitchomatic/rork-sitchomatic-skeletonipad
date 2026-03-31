@@ -8,7 +8,7 @@ nonisolated enum ProcessPoolMode: Sendable {
 
 @MainActor
 final class WebViewProcessPoolManager {
-    nonisolated(unsafe) static let shared = WebViewProcessPoolManager()
+    static let shared = WebViewProcessPoolManager()
 
     private(set) var mode: ProcessPoolMode = .single
     private var singlePool: WKProcessPool = WKProcessPool()

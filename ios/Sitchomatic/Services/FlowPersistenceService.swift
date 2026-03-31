@@ -2,7 +2,7 @@ import Foundation
 
 @MainActor
 class FlowPersistenceService {
-    nonisolated(unsafe) static let shared = FlowPersistenceService()
+    static let shared = FlowPersistenceService()
 
     private let flowsKey = "recorded_flows_v1"
     private let backupKey = "recorded_flows_backup_v1"

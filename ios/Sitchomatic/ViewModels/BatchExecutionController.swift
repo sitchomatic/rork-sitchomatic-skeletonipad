@@ -31,7 +31,7 @@ extension BatchExecutionController {
 }
 
 @MainActor
-class BatchStateManager {
+class LegacyBatchStateManager {
     var isRunning: Bool = false
     var isPaused: Bool = false
     var isStopping: Bool = false

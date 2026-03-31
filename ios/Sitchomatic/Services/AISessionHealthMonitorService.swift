@@ -116,7 +116,7 @@ nonisolated struct SessionHealthStore: Codable, Sendable {
 
 @MainActor
 class AISessionHealthMonitorService {
-    nonisolated(unsafe) static let shared = AISessionHealthMonitorService()
+    static let shared = AISessionHealthMonitorService()
 
     private let logger = DebugLogger.shared
     private let persistenceKey = "AISessionHealthMonitorData_v1"

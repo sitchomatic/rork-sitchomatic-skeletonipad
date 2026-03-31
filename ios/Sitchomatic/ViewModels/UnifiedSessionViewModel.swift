@@ -5,7 +5,7 @@ import SwiftUI
 @Observable
 @MainActor
 class UnifiedSessionViewModel {
-    nonisolated(unsafe) static let shared = UnifiedSessionViewModel()
+    static let shared = UnifiedSessionViewModel()
 
     let batchState = BatchStateManager.shared
 

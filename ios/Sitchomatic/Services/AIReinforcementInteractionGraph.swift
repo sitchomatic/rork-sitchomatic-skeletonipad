@@ -74,7 +74,7 @@ nonisolated struct InteractionGraphStore: Codable, Sendable {
 
 @MainActor
 class AIReinforcementInteractionGraph {
-    nonisolated(unsafe) static let shared = AIReinforcementInteractionGraph()
+    static let shared = AIReinforcementInteractionGraph()
 
     private let logger = DebugLogger.shared
     private let persistenceKey = "AIReinforcementInteractionGraph_v1"

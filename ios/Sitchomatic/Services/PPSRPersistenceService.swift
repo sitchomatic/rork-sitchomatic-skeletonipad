@@ -3,7 +3,7 @@ import UIKit
 
 @MainActor
 class PPSRPersistenceService {
-    nonisolated(unsafe) static let shared = PPSRPersistenceService()
+    static let shared = PPSRPersistenceService()
 
     private let cardsKey = "saved_cards_v2"
     private let settingsKey = "app_settings_v3"

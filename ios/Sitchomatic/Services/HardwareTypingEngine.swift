@@ -2,7 +2,7 @@ import Foundation
 
 @MainActor
 class HardwareTypingEngine {
-    nonisolated(unsafe) static let shared = HardwareTypingEngine()
+    static let shared = HardwareTypingEngine()
 
     private let logger = DebugLogger.shared
     private let coordEngine = CoordinateInteractionEngine.shared

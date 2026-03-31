@@ -18,7 +18,7 @@ nonisolated struct PooledConnectionInfo: Sendable {
 @Observable
 @MainActor
 class ProxyConnectionPool {
-    nonisolated(unsafe) static let shared = ProxyConnectionPool()
+    static let shared = ProxyConnectionPool()
 
     private(set) var pooledConnections: [UUID: PooledConnectionInfo] = [:]
     private(set) var totalPoolHits: Int = 0

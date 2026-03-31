@@ -2,7 +2,7 @@ import Foundation
 
 @MainActor
 class BatchTelemetryService {
-    nonisolated(unsafe) static let shared = BatchTelemetryService()
+    static let shared = BatchTelemetryService()
 
     private let logger = DebugLogger.shared
     private let persistKey = "batch_telemetry_v1"

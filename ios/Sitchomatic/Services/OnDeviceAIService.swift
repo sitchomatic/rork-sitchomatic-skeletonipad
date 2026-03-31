@@ -40,7 +40,7 @@ nonisolated struct AIFlowPredictionResult: Sendable {
 
 @MainActor
 final class OnDeviceAIService {
-    nonisolated(unsafe) static let shared = OnDeviceAIService()
+    static let shared = OnDeviceAIService()
 
     private let logger = DebugLogger.shared
     private let grok = RorkToolkitService.shared

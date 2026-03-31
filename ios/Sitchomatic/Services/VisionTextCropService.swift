@@ -4,7 +4,7 @@ import UIKit
 
 @MainActor
 class VisionTextCropService {
-    nonisolated(unsafe) static let shared = VisionTextCropService()
+    static let shared = VisionTextCropService()
 
     private let logger = DebugLogger.shared
 

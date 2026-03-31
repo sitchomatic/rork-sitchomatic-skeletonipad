@@ -115,7 +115,7 @@ nonisolated struct CredentialPriorityStore: Codable, Sendable {
 
 @MainActor
 class AICredentialPriorityScoringService {
-    nonisolated(unsafe) static let shared = AICredentialPriorityScoringService()
+    static let shared = AICredentialPriorityScoringService()
 
     private let logger = DebugLogger.shared
     private let persistenceKey = "AICredentialPriorityScoringData_v1"

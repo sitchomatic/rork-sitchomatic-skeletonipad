@@ -28,7 +28,9 @@ actor PersistenceActor {
     private init() {
         let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
         self.rootURL = docs.appendingPathComponent("PersistenceStore")
-        ensureDirectoryExists(at: rootURL)
+        if !FileManager.default.fileExists(atPath: rootURL.path) {
+            try? FileManager.default.createDirectory(at: rootURL, withIntermediateDirectories: true)
+        }
     }
 
     // MARK: - Public API

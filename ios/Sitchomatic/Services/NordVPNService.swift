@@ -84,7 +84,7 @@ nonisolated enum NordKeyProfile: String, CaseIterable, Codable, Sendable {
 @Observable
 @MainActor
 class NordVPNService {
-    nonisolated(unsafe) static let shared = NordVPNService()
+    static let shared = NordVPNService()
 
     var accessKey: String = ""
     var privateKey: String = ""
