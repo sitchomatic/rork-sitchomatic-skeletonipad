@@ -72,7 +72,6 @@ nonisolated struct AIAnalysisStats: Sendable {
 
 /// Ultra-high performance AI analysis engine with:
 /// - Task naming for Instruments visibility
-/// - async defer for guaranteed cleanup
 /// - Structured concurrency task groups for parallel processing
 /// - Complete Sendable conformance for isolation safety
 @MainActor
@@ -108,10 +107,6 @@ final class AIAnalysisEngine {
         enableCache: Bool = true
     ) async -> String? {
         await Task(name: "AIAnalysis-\(model.rawValue)-\(priority)") {
-            async defer {
-                logger.log("AIAnalysisEngine: analysis task completed", category: .evaluation, level: .trace)
-            }
-
             let cacheKey = enableCache ? generateCacheKey(systemPrompt: systemPrompt, userPrompt: userPrompt, model: model) : nil
 
             // Check cache first with inline optimization
@@ -164,10 +159,6 @@ final class AIAnalysisEngine {
     /// Batch analyze multiple requests using Swift 6.2 structured concurrency task groups
     func analyzeBatch(_ requests: [AIAnalysisRequest]) async -> [String?] {
         await withTaskGroup(of: (Int, String?).self, returning: [String?].self) { group in
-            async defer {
-                logger.log("AIAnalysisEngine: batch analysis completed", category: .evaluation, level: .debug)
-            }
-
             for (index, request) in requests.enumerated() {
                 group.addTask(priority: request.priority == .critical ? .high : .medium) {
                     await Task(name: "AIBatch-\(index)-\(request.model.rawValue)") {
@@ -185,6 +176,8 @@ final class AIAnalysisEngine {
             return results.sorted(by: { $0.0 < $1.0 }).map { $0.1 }
         }
     }
+
+    func getStats() -> AIAnalysisStats {
         var current = stats
         current.queuedRequests = requestQueue.count
         current.processingRequests = processingCount
@@ -238,8 +231,7 @@ final class AIAnalysisEngine {
 
     private func executeRequest(_ request: AIAnalysisRequest) async -> String? {
         processingCount += 1
-
-        async defer {
+        defer {
             processingCount -= 1
         }
 

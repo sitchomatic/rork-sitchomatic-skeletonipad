@@ -3,9 +3,8 @@ import UIKit
 
 /// Swift 6.2 ultra-high performance screenshot cache with:
 /// - Task naming for Instruments visibility
-/// - async defer for guaranteed cleanup
 /// - inline optimization for hot paths
-/// - efficient collection operations with lazy evaluation
+/// - efficient collection operations
 @MainActor
 final class ScreenshotCache {
     nonisolated(unsafe) static let shared = ScreenshotCache()
@@ -36,9 +35,8 @@ final class ScreenshotCache {
         let now = Date()
         batchScreenshotCount += 1
 
-        // Swift 6.2: Optimized collection filtering with lazy evaluation
         recentStoreTimestamps.append(now)
-        recentStoreTimestamps = recentStoreTimestamps.lazy.filter { now.timeIntervalSince($0) < 1.0 }.map { $0 }
+        recentStoreTimestamps.removeAll { now.timeIntervalSince($0) >= 1.0 }
 
         if recentStoreTimestamps.count > 5 && !diskOnlyMode {
             diskOnlyMode = true
@@ -68,16 +66,12 @@ final class ScreenshotCache {
         let fileURL = fileURL(for: key)
         let jpegData = compressed.jpegData(compressionQuality: 0.15)
 
-        // Swift 6.2: Task naming for better profiling
-        Task(name: "ScreenshotCache-WriteDisk-\(key.prefix(8))", priority: .utility) {
-            async defer {
-                await MainActor.run { [weak self] in
-                    self?.evictDiskCacheIfNeeded()
-                }
-            }
-
+        Task.detached(priority: .utility) { [weak self, fileURL, jpegData] in
             if let data = jpegData {
                 try? data.write(to: fileURL, options: .atomic)
+            }
+            await MainActor.run { [weak self] in
+                self?.evictDiskCacheIfNeeded()
             }
         }
     }
@@ -86,11 +80,11 @@ final class ScreenshotCache {
     func storeData(_ data: Data, forKey key: String) {
         let fileURL = fileURL(for: key)
 
-        Task(name: "ScreenshotCache-StoreData-\(key.prefix(8))", priority: .utility) {
-            async defer {
-                DebugLogger.shared.log("ScreenshotCache: data store completed", category: .screenshot, level: .trace)
-            }
+        Task.detached(priority: .utility) { [weak self, data, fileURL] in
             try? data.write(to: fileURL, options: .atomic)
+            await MainActor.run { [weak self] in
+                self?.evictDiskCacheIfNeeded()
+            }
         }
 
         if let image = UIImage(data: data), !diskOnlyMode, !CrashProtectionService.shared.isMemoryCritical {
@@ -130,19 +124,14 @@ final class ScreenshotCache {
         return compressForMemory(image)
     }
 
-    /// Async store with Swift 6.2 Task naming and async defer
+    /// Async store with Swift 6.2 Task naming
     func storeAsync(_ image: UIImage, forKey key: String) async {
         await Task(name: "ScreenshotCache-StoreAsync-\(key.prefix(8))") {
-            async defer {
-                logger.log("ScreenshotCache: async store completed", category: .screenshot, level: .trace)
-            }
-
             let now = Date()
             batchScreenshotCount += 1
 
             recentStoreTimestamps.append(now)
-            // Swift 6.2: Lazy evaluation for performance
-            recentStoreTimestamps = recentStoreTimestamps.lazy.filter { now.timeIntervalSince($0) < 1.0 }.map { $0 }
+            recentStoreTimestamps.removeAll { now.timeIntervalSince($0) >= 1.0 }
 
             if recentStoreTimestamps.count > 5 && !diskOnlyMode {
                 diskOnlyMode = true

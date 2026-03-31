@@ -2,19 +2,20 @@
 
 ## Overview
 
-Completed comprehensive code revision implementing Swift 6.2 latest features for ultra-high performance optimization across the Sitchomatic iOS project (366 Swift files).
+Completed targeted code revision applying Swift 6.2 features and performance improvements to core infrastructure services.
 
 ## Version Upgrade
 
-**Swift 6.0 → Swift 6.2** across all 8 build configurations
+**Swift 6.0 → Swift 6.2** build setting updated in `project.pbxproj`
 
 ## Major Optimizations Applied
 
 ### 1. Swift 6.2 Typed Throws
 - Created `BatchError` enum with typed error handling
-- Applied to `BatchStateManager.startBatch()`, `pause()`, `resume()`, `stop()`
+- Applied to `BatchStateManager.pause()`, `resume()`, `stop()`
+- `startBatch()` remains non-throwing (logs a warning and no-ops on duplicate start) for compatibility with UI call sites
 - Benefits:
-  - Compile-time error handling verification
+  - Compile-time error handling verification for lifecycle transitions
   - Better error propagation semantics
   - Clearer API contracts
 

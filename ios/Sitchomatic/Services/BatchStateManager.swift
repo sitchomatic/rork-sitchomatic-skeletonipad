@@ -3,7 +3,7 @@ import Observation
 
 /// Centralized batch execution state manager with Swift 6.2 optimization.
 /// Ultra-high performance implementation with typed throws, Task naming,
-/// async defer, and advanced concurrency patterns.
+/// and advanced concurrency patterns.
 @Observable
 @MainActor
 final class BatchStateManager {
@@ -62,10 +62,11 @@ final class BatchStateManager {
 
     // MARK: - Batch Lifecycle (Swift 6.2 Typed Throws)
 
-    /// Starts a new batch with typed error handling
-    func startBatch(totalItems: Int = 0) throws(BatchError) {
+    /// Starts a new batch; no-ops with a warning log if one is already running
+    func startBatch(totalItems: Int = 0) {
         guard !isRunning else {
-            throw .batchAlreadyRunning
+            logger.log("BatchStateManager: attempted to start batch while one is already running", category: .automation, level: .warning)
+            return
         }
 
         isRunning = true
@@ -170,15 +171,11 @@ final class BatchStateManager {
         totalCount = total
     }
 
-    // MARK: - Pause Countdown (Swift 6.2 Task naming + async defer)
+    // MARK: - Pause Countdown (Swift 6.2 Task naming)
 
     private func startPauseCountdown() {
         cancelPauseCountdown()
         pauseCountdownTask = Task(name: "BatchState-PauseCountdown") { [weak self] in
-            async defer {
-                self?.logger.log("BatchStateManager: pause countdown task completed", category: .automation, level: .trace)
-            }
-
             while let self, self.pauseCountdown > 0 {
                 try? await Task.sleep(for: .seconds(1))
                 guard !Task.isCancelled else { return }
@@ -188,6 +185,7 @@ final class BatchStateManager {
             if self.isPaused {
                 try? self.resume()
             }
+            self.logger.log("BatchStateManager: pause countdown task completed", category: .automation, level: .trace)
         }
     }
 
@@ -196,15 +194,11 @@ final class BatchStateManager {
         pauseCountdownTask = nil
     }
 
-    // MARK: - Force Stop Timer (Swift 6.2 Task naming + async defer)
+    // MARK: - Force Stop Timer (Swift 6.2 Task naming)
 
     private func startForceStopTimer() {
         cancelForceStop()
         forceStopTask = Task(name: "BatchState-ForceStopTimer") { [weak self] in
-            async defer {
-                self?.logger.log("BatchStateManager: force stop timer task completed", category: .automation, level: .trace)
-            }
-
             try? await Task.sleep(for: .seconds(self?.forceStopDelaySeconds ?? 30))
             guard !Task.isCancelled, let self else { return }
             if self.isStopping {
@@ -212,6 +206,7 @@ final class BatchStateManager {
                 self.onForceStop?()
                 self.finalizeBatch()
             }
+            self.logger.log("BatchStateManager: force stop timer task completed", category: .automation, level: .trace)
         }
     }
 
@@ -220,15 +215,11 @@ final class BatchStateManager {
         forceStopTask = nil
     }
 
-    // MARK: - Heartbeat (Swift 6.2 Task naming + async defer)
+    // MARK: - Heartbeat (Swift 6.2 Task naming)
 
     private func startHeartbeat() {
         cancelHeartbeat()
         heartbeatTask = Task(name: "BatchState-Heartbeat") { [weak self] in
-            async defer {
-                self?.logger.log("BatchStateManager: heartbeat task stopped", category: .automation, level: .debug)
-            }
-
             while let self, !Task.isCancelled, self.isRunning {
                 try? await Task.sleep(for: .seconds(self.heartbeatIntervalSeconds))
                 guard !Task.isCancelled, self.isRunning else { break }
@@ -237,6 +228,8 @@ final class BatchStateManager {
                 let elapsed = Int(self.elapsedSeconds)
                 self.logger.log("BatchStateManager: heartbeat — \(self.successCount)/\(self.totalCount) done, \(self.failureCount) failed, \(elapsed)s elapsed, \(memMB)MB memory", category: .automation, level: .trace)
             }
+            guard let self else { return }
+            self.logger.log("BatchStateManager: heartbeat task stopped", category: .automation, level: .debug)
         }
     }
 

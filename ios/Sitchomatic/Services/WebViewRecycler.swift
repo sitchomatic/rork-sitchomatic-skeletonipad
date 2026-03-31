@@ -3,8 +3,7 @@ import Foundation
 
 /// Swift 6.2 ultra-high performance WebView recycler with:
 /// - Task naming for Instruments visibility
-/// - async defer for guaranteed cleanup
-/// - borrowing parameters for zero-copy optimization
+/// - borrowing parameters for zero-copy optimization on read-only paths
 /// - inline optimization for hot paths
 @MainActor
 final class WebViewRecycler {
@@ -25,7 +24,7 @@ final class WebViewRecycler {
 
     private init() {}
 
-    /// Pre-warm WebViews with Swift 6.2 Task naming
+    /// Pre-warm WebViews synchronously so the pool is filled before callers proceed
     func prewarm(count: Int? = nil) {
         let target = count ?? DeviceCapability.performanceProfile.webViewPrewarmCount
         let toCreate = min(target, maxPoolSize - availableViews.count)
@@ -33,17 +32,13 @@ final class WebViewRecycler {
 
         logger.log("WebViewRecycler: pre-warming \(toCreate) views", category: .webView, level: .info)
 
-        Task(name: "WebViewRecycler-PrewarmPool") {
-            async defer {
-                self.logger.log("WebViewRecycler: pre-warm complete — pool size: \(self.availableViews.count)", category: .webView, level: .info)
-            }
-
-            for _ in 0..<toCreate {
-                let view = self.createFreshView(viewport: CGSize(width: 390, height: 844))
-                self.availableViews.append(view)
-                self.totalPrewarmed += 1
-            }
+        for _ in 0..<toCreate {
+            let view = createFreshView(viewport: CGSize(width: 390, height: 844))
+            availableViews.append(view)
+            totalPrewarmed += 1
         }
+
+        logger.log("WebViewRecycler: pre-warm complete — pool size: \(availableViews.count)", category: .webView, level: .info)
     }
 
     /// Checkout WebView with Swift 6.2 inline optimization for hot path
@@ -67,9 +62,9 @@ final class WebViewRecycler {
         return fresh
     }
 
-    /// Return WebView with Swift 6.2 borrowing parameter (zero-copy optimization)
+    /// Return WebView to the pool after use
     @inline(__always)
-    func returnView(_ webView: borrowing WKWebView) {
+    func returnView(_ webView: WKWebView) {
         totalReturns += 1
 
         guard availableViews.count < maxPoolSize else {
@@ -79,25 +74,20 @@ final class WebViewRecycler {
         }
 
         cleanView(webView)
-        // Note: borrowing parameter means we must create reference if storing
-        availableViews.append(webView as WKWebView)
+        availableViews.append(webView)
         logger.log("WebViewRecycler: returned & cleaned (pool: \(availableViews.count))", category: .webView, level: .trace)
     }
 
-    /// Emergency flush with Swift 6.2 Task naming
+    /// Emergency flush — synchronously destroys and removes all pooled views
     func emergencyFlush() {
         let count = availableViews.count
 
-        Task(name: "WebViewRecycler-EmergencyFlush") {
-            async defer {
-                self.logger.log("WebViewRecycler: EMERGENCY FLUSH — destroyed \(count) pooled views", category: .webView, level: .critical)
-            }
-
-            for view in self.availableViews {
-                self.destroyView(view)
-            }
-            self.availableViews.removeAll()
+        for view in availableViews {
+            destroyView(view)
         }
+        availableViews.removeAll()
+
+        logger.log("WebViewRecycler: EMERGENCY FLUSH — destroyed \(count) pooled views", category: .webView, level: .critical)
     }
 
     func reset() {
