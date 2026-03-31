@@ -283,7 +283,10 @@ class UnifiedImportExportService {
     func validateCredentials(_ imports: [LoginCredentialImport]) -> (valid: [LoginCredentialImport], errors: [String]) {
         var valid: [LoginCredentialImport] = []
         var errors: [String] = []
-        let emailRegex = try! Regex("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$")
+        guard let emailRegex = try? Regex(#"^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$"#) else {
+            errors.append("Internal error: invalid email validation pattern")
+            return (valid, errors)
+        }
 
         for (index, item) in imports.enumerated() {
             let trimmedEmail = item.email.trimmingCharacters(in: .whitespaces)
