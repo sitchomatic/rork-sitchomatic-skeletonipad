@@ -2,7 +2,7 @@ import Foundation
 
 @MainActor
 class ServiceContainer {
-    static let shared = ServiceContainer()
+    nonisolated(unsafe) static let shared = ServiceContainer()
 
     let proxyRotation: ProxyRotationService
     let networkSessionFactory: NetworkSessionFactory

@@ -2,7 +2,7 @@ import Foundation
 
 @MainActor
 class LoginPatternLearning {
-    static let shared = LoginPatternLearning()
+    nonisolated(unsafe) static let shared = LoginPatternLearning()
 
     private let persistenceKey = "LoginPatternLearningData"
     private let logger = DebugLogger.shared

@@ -4,7 +4,7 @@ import Vision
 
 @MainActor
 class ConfidenceResultEngine {
-    static let shared = ConfidenceResultEngine()
+    nonisolated(unsafe) static let shared = ConfidenceResultEngine()
 
     private let logger = DebugLogger.shared
     private let aiAnalyzer = AIConfidenceAnalyzerService.shared

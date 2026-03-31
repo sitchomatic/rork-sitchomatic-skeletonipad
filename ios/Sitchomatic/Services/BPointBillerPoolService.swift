@@ -22,7 +22,7 @@ struct BillerBlacklistEntry: Identifiable, Sendable {
 @Observable
 @MainActor
 class BPointBillerPoolService {
-    static let shared = BPointBillerPoolService()
+    nonisolated(unsafe) static let shared = BPointBillerPoolService()
 
     private(set) var blacklistedBillers: [BillerBlacklistEntry] = []
     private var blacklistedCodes: Set<String> = []

@@ -74,7 +74,7 @@ nonisolated struct TapHeatmapData: Sendable {
 
 @MainActor
 class ReplayDebuggerService {
-    static let shared = ReplayDebuggerService()
+    nonisolated(unsafe) static let shared = ReplayDebuggerService()
 
     private let logger = DebugLogger.shared
     private let screenshotCache = ScreenshotCache.shared

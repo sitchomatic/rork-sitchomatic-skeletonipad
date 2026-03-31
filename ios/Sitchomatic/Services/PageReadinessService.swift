@@ -3,7 +3,7 @@ import WebKit
 
 @MainActor
 class PageReadinessService {
-    static let shared = PageReadinessService()
+    nonisolated(unsafe) static let shared = PageReadinessService()
 
     private let logger = DebugLogger.shared
     private let settlement = SmartPageSettlementService.shared

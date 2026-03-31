@@ -5,7 +5,7 @@ import Observation
 @Observable
 @MainActor
 class EvidenceBundleService {
-    static let shared = EvidenceBundleService()
+    nonisolated(unsafe) static let shared = EvidenceBundleService()
 
     var bundles: [EvidenceBundle] = []
     private let screenshotCache = ScreenshotCache.shared

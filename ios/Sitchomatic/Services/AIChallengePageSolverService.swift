@@ -58,7 +58,7 @@ nonisolated struct AIChallengeStore: Codable, Sendable {
 
 @MainActor
 class AIChallengePageSolverService {
-    static let shared = AIChallengePageSolverService()
+    nonisolated(unsafe) static let shared = AIChallengePageSolverService()
 
     private let logger = DebugLogger.shared
     private let persistenceKey = "AIChallengePageSolverData"

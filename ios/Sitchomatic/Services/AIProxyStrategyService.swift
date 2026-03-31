@@ -81,7 +81,7 @@ nonisolated struct ProxyStrategyStore: Codable, Sendable {
 
 @MainActor
 class AIProxyStrategyService {
-    static let shared = AIProxyStrategyService()
+    nonisolated(unsafe) static let shared = AIProxyStrategyService()
 
     private let logger = DebugLogger.shared
     private let persistKey = "AIProxyStrategyData_v1"

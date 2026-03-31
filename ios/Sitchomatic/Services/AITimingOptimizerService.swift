@@ -73,7 +73,7 @@ nonisolated struct TimingStore: Codable, Sendable {
 
 @MainActor
 class AITimingOptimizerService {
-    static let shared = AITimingOptimizerService()
+    nonisolated(unsafe) static let shared = AITimingOptimizerService()
 
     private let logger = DebugLogger.shared
     private let persistenceKey = "AITimingOptimizerData"

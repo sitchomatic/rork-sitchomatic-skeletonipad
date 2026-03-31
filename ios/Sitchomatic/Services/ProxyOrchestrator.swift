@@ -167,7 +167,7 @@ nonisolated struct ProxyHealthStatus: Sendable {
 
 @MainActor
 final class ProxyOrchestrator {
-    static let shared = ProxyOrchestrator()
+    nonisolated(unsafe) static let shared = ProxyOrchestrator()
 
     private let logger = DebugLogger.shared
 
