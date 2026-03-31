@@ -317,7 +317,7 @@ struct LoginSessionDetailSheet: View {
             .navigationTitle("Session Detail").navigationBarTitleDisplayMode(.inline)
             .fullScreenCover(isPresented: $showFullScreenshot) {
                 if let snapshot = attempt.responseSnapshot {
-                    FullScreenshotView(image: snapshot)
+                    ImageFlipbookView(images: [snapshot], startIndex: 0)
                 }
             }
         }
@@ -337,27 +337,4 @@ struct LoginSessionDetailSheet: View {
         }
     }
 
-}
-
-struct FullScreenshotView: View {
-    let image: UIImage
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        NavigationStack {
-            ScrollView([.horizontal, .vertical]) {
-                Image(uiImage: image)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-            }
-            .background(.black)
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Done") { dismiss() }.foregroundStyle(.white)
-                }
-            }
-            .toolbarBackground(.hidden, for: .navigationBar)
-        }
-    }
 }

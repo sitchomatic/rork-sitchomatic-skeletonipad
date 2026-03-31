@@ -248,7 +248,7 @@ struct SessionDetailSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .fullScreenCover(isPresented: $showFullScreenshot) {
                 if let snapshot = check.responseSnapshot {
-                FullScreenshotView(image: snapshot)
+                    ImageFlipbookView(images: [snapshot], startIndex: 0)
                 }
             }
         }
