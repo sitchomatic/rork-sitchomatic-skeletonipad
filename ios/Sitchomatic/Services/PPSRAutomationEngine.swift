@@ -20,7 +20,7 @@ class PPSRAutomationEngine {
     var speedMultiplier: Double = 1.0
     var screenshotCropRect: CGRect = .zero
     private let logger = DebugLogger.shared
-    var onScreenshot: ((PPSRDebugScreenshot) -> Void)?
+    var onScreenshot: ((CapturedScreenshot) -> Void)?
     var onConnectionFailure: ((String) -> Void)?
     var onUnusualFailure: ((String) -> Void)?
     var onLog: ((String, PPSRLogEntry.Level) -> Void)?
@@ -481,7 +481,7 @@ class PPSRAutomationEngine {
         check.responseSnippet = String(pageContent.prefix(500))
         logger.log("PPSR evaluation: \(finalEvaluation.outcome) score=\(finalEvaluation.score) — \(finalEvaluation.reason)", category: .evaluation, level: finalEvaluation.outcome == .pass ? .success : .warning, sessionId: sessionId)
 
-        let autoResult: PPSRDebugScreenshot.AutoDetectedResult
+        let autoResult: AutoDetectedResult
         switch finalEvaluation.outcome {
         case .failInstitution: autoResult = .noAcc
         case .pass: autoResult = .success
@@ -704,28 +704,24 @@ class PPSRAutomationEngine {
         check.logs.append(PPSRLogEntry(message: "ERROR: \(message)", level: .error))
     }
 
-    private func captureScreenshotForCheck(session: some ScreenshotCapableSession, check: PPSRCheck, step: String, note: String, autoResult: PPSRDebugScreenshot.AutoDetectedResult = .unknown) async {
+    private func captureScreenshotForCheck(session: some ScreenshotCapableSession, check: PPSRCheck, step: String, note: String, autoResult: AutoDetectedResult = .unknown) async {
         let cropRect = screenshotCropRect == .zero ? nil : screenshotCropRect
         let result = await session.captureScreenshotWithCrop(cropRect: cropRect)
         guard let fullImage = result.full else { return }
 
         check.responseSnapshot = fullImage
 
-
-        let compressed: UIImage
-        if let jpegData = fullImage.jpegData(compressionQuality: 0.3), let ci = UIImage(data: jpegData) {
-            compressed = ci
-        } else {
-            compressed = fullImage
-        }
-        var compressedCrop: UIImage?
-        if let cropped = result.cropped, let jpegData = cropped.jpegData(compressionQuality: 0.4), let ci = UIImage(data: jpegData) {
-            compressedCrop = ci
-        }
-        let screenshot = PPSRDebugScreenshot(
-            stepName: step, cardDisplayNumber: check.card.displayNumber, cardId: check.card.id,
-            vin: check.vin, email: check.email, image: compressed, croppedImage: compressedCrop,
-            note: note, autoDetectedResult: autoResult
+        let captureResult = ScreenshotCaptureService.shared.compress(image: fullImage, cropRect: cropRect)
+        let screenshot = CapturedScreenshot(
+            stepName: step,
+            email: check.email,
+            cardDisplayNumber: check.card.displayNumber,
+            cardId: check.card.id,
+            vin: check.vin,
+            fullImageData: captureResult.fullImageData,
+            croppedImageData: captureResult.croppedImageData,
+            note: note,
+            autoDetectedResult: autoResult
         )
         check.screenshotIds.append(screenshot.id)
         onScreenshot?(screenshot)
