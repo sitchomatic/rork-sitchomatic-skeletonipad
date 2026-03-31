@@ -393,14 +393,10 @@ class NordServerIntelligence {
             )
             let connection = NWConnection(to: endpoint, using: .tcp)
             let queue = DispatchQueue(label: "nord-intel-validate.\(UUID().uuidString.prefix(6))")
-            let completedBox = UnsafeSendableBox(false)
-            let lock = NSLock()
+            let guard_ = ContinuationGuard()
 
             @Sendable func finish(_ result: (alive: Bool, validated: Bool)) {
-                lock.lock()
-                defer { lock.unlock() }
-                guard !completedBox.value else { return }
-                completedBox.value = true
+                guard guard_.tryConsume() else { return }
                 continuation.resume(returning: result)
             }
 

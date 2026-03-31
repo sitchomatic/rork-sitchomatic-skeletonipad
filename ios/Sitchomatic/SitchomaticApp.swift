@@ -180,10 +180,11 @@ struct SitchomaticApp: App {
 
                     let monitor = MemoryPressureMonitor.shared
                     monitor.register()
-                    monitor.onMemoryWarning {
+                    monitor.onMemoryWarning { tier in
                         DebugLogger.shared.handleMemoryPressure()
 
-                        ScreenshotCache.shared.setMaxCacheCounts(memory: 10, disk: 200)
+                        let limits: (memory: Int, disk: Int) = tier >= .severe ? (5, 100) : (10, 200)
+                        ScreenshotCache.shared.setMaxCacheCounts(memory: limits.memory, disk: limits.disk)
                         LoginViewModel.shared.handleMemoryPressure()
                         LoginViewModel.shared.trimAttemptsIfNeeded()
                         PPSRAutomationViewModel.shared.handleMemoryPressure()

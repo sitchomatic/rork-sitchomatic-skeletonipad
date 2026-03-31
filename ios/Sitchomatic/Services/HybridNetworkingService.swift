@@ -645,14 +645,10 @@ class HybridNetworkingService {
             let endpoint = NWEndpoint.hostPort(host: NWEndpoint.Host(host), port: NWEndpoint.Port(integerLiteral: port))
             let connection = NWConnection(to: endpoint, using: .tcp)
             let queue = DispatchQueue(label: "hybrid-preflight-\(host)-\(port)")
-            let completedBox = UnsafeSendableBox(false)
-            let lock = NSLock()
+            let guard_ = ContinuationGuard()
 
             @Sendable func finish(_ result: Bool) {
-                lock.lock()
-                defer { lock.unlock() }
-                guard !completedBox.value else { return }
-                completedBox.value = true
+                guard guard_.tryConsume() else { return }
                 continuation.resume(returning: result)
             }
 
