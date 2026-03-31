@@ -4,7 +4,7 @@ import Observation
 @Observable
 @MainActor
 class SessionRecoveryService {
-    static let shared = SessionRecoveryService()
+    nonisolated(unsafe) static let shared = SessionRecoveryService()
 
     private let storageKey = "session_recovery_batch_v1"
     private let logger = DebugLogger.shared

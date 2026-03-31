@@ -3,7 +3,7 @@ import UIKit
 
 @MainActor
 class ScreenshotCaptureService {
-    static let shared = ScreenshotCaptureService()
+    nonisolated(unsafe) static let shared = ScreenshotCaptureService()
 
     static let proMaxWidth: CGFloat = 1320
     static let proMaxHeight: CGFloat = 2868

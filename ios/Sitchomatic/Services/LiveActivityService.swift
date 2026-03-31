@@ -5,7 +5,7 @@ import Observation
 @Observable
 @MainActor
 class LiveActivityService {
-    static let shared = LiveActivityService()
+    nonisolated(unsafe) static let shared = LiveActivityService()
 
     private var currentActivity: Activity<CommandCenterActivityAttributes>?
     private var updateTimer: Timer?

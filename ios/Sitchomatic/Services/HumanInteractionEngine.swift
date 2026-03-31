@@ -4,7 +4,7 @@ import UIKit
 
 @MainActor
 class HumanInteractionEngine {
-    static let shared = HumanInteractionEngine()
+    nonisolated(unsafe) static let shared = HumanInteractionEngine()
 
     private let logger = DebugLogger.shared
     private let patternLearning = LoginPatternLearning.shared

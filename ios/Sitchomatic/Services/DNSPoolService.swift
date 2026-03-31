@@ -125,7 +125,7 @@ nonisolated struct DoHAnswerEntry: Codable, Sendable {
 
 @MainActor
 class DNSPoolService {
-    static let shared = DNSPoolService()
+    nonisolated(unsafe) static let shared = DNSPoolService()
 
     private var serverIndex: Int = 0
     private let persistKey = "dns_pool_managed_v3"

@@ -3086,7 +3086,7 @@ extension BPointWebSession: WKScriptMessageHandler {
 /// Maintains the full old API surface while delegating pool management to WebViewPool.
 @MainActor
 class WebViewTracker {
-    static let shared = WebViewTracker()
+    nonisolated(unsafe) static let shared = WebViewTracker()
 
     private(set) var activeCount: Int = 0
     private(set) var totalCreated: Int = 0
@@ -3160,7 +3160,7 @@ class WebViewTracker {
 /// idle detection and JS heartbeat checks for liveness.
 @MainActor
 class DeadSessionDetector {
-    static let shared = DeadSessionDetector()
+    nonisolated(unsafe) static let shared = DeadSessionDetector()
 
     private let logger = DebugLogger.shared
     private let activityMonitor = SessionActivityMonitor.shared
@@ -3317,7 +3317,7 @@ class DeadSessionDetector {
 /// Full-fidelity reproduction of the SessionActivityMonitor API.
 @MainActor
 class SessionActivityMonitor {
-    static let shared = SessionActivityMonitor()
+    nonisolated(unsafe) static let shared = SessionActivityMonitor()
 
     private let logger = DebugLogger.shared
     private var sessions: [String: SessionActivity] = [:]

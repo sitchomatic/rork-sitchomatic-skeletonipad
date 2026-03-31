@@ -3,7 +3,7 @@ import UIKit
 
 @MainActor
 final class AppStabilityCoordinator {
-    static let shared = AppStabilityCoordinator()
+    nonisolated(unsafe) static let shared = AppStabilityCoordinator()
 
     private let logger = DebugLogger.shared
     private let crashProtection = CrashProtectionService.shared

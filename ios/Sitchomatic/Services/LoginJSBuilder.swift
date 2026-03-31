@@ -2,7 +2,7 @@ import Foundation
 
 @MainActor
 class LoginJSBuilder {
-    static let shared = LoginJSBuilder()
+    nonisolated(unsafe) static let shared = LoginJSBuilder()
 
     func escapeForJS(_ str: String) -> String {
         str.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "'", with: "\\'")

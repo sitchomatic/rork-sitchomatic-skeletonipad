@@ -2,7 +2,7 @@ import Foundation
 
 @MainActor
 class LiveSpeedAdaptationService {
-    static let shared = LiveSpeedAdaptationService()
+    nonisolated(unsafe) static let shared = LiveSpeedAdaptationService()
 
     private let logger = DebugLogger.shared
     private let aiTiming = AITimingOptimizerService.shared

@@ -5,7 +5,7 @@ import Observation
 @Observable
 @MainActor
 class NetworkRepairService {
-    static let shared = NetworkRepairService()
+    nonisolated(unsafe) static let shared = NetworkRepairService()
 
     private(set) var isRepairing: Bool = false
     private(set) var repairPhase: RepairPhase = .idle

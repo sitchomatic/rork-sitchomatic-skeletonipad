@@ -199,7 +199,7 @@ typealias ExportableConfig = ComprehensiveExportConfig
 
 @MainActor
 class AppDataExportService {
-    static let shared = AppDataExportService()
+    nonisolated(unsafe) static let shared = AppDataExportService()
 
     func exportJSON() -> String {
         let urlService = LoginURLRotationService.shared

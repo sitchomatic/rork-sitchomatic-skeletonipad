@@ -5,7 +5,7 @@ import Observation
 @Observable
 @MainActor
 class HybridNetworkingService {
-    static let shared = HybridNetworkingService()
+    nonisolated(unsafe) static let shared = HybridNetworkingService()
 
     private let proxyService = ProxyRotationService.shared
     private let aiStrategy = AIProxyStrategyService.shared

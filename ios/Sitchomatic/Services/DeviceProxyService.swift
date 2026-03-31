@@ -4,7 +4,7 @@ import Observation
 @Observable
 @MainActor
 class DeviceProxyService {
-    static let shared = DeviceProxyService()
+    nonisolated(unsafe) static let shared = DeviceProxyService()
 
     private let proxyService = ProxyRotationService.shared
     private let localProxy = LocalProxyServer.shared

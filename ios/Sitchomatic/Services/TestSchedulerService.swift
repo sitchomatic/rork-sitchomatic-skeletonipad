@@ -2,7 +2,7 @@ import Foundation
 
 @MainActor
 class TestSchedulerService {
-    static let shared = TestSchedulerService()
+    nonisolated(unsafe) static let shared = TestSchedulerService()
 
     private let storageKey = "test_schedules_v1"
     private(set) var schedules: [TestSchedule] = []

@@ -61,7 +61,7 @@ nonisolated struct ConcurrencyHistoryPoint: Sendable {
 @Observable
 @MainActor
 class AdaptiveConcurrencyEngine {
-    static let shared = AdaptiveConcurrencyEngine()
+    nonisolated(unsafe) static let shared = AdaptiveConcurrencyEngine()
 
     private(set) var livePairCount: Int = 1
     var maxCap: Int = 4

@@ -4,7 +4,7 @@ import UIKit
 
 @MainActor
 class FlowPlaybackEngine {
-    static let shared = FlowPlaybackEngine()
+    nonisolated(unsafe) static let shared = FlowPlaybackEngine()
 
     private let logger = DebugLogger.shared
     private let visionML = VisionMLService.shared

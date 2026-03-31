@@ -50,7 +50,7 @@ private nonisolated struct MemorySample: Sendable {
 @Observable
 @MainActor
 final class StressTestService {
-    static let shared = StressTestService()
+    nonisolated(unsafe) static let shared = StressTestService()
 
     // MARK: - State
 

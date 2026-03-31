@@ -2,7 +2,7 @@ import Foundation
 
 @MainActor
 class LoginPersistenceService {
-    static let shared = LoginPersistenceService()
+    nonisolated(unsafe) static let shared = LoginPersistenceService()
 
     private let credentialsKey = "saved_login_credentials_v1"
     private let settingsKey = "login_app_settings_v1"

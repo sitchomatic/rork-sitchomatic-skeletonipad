@@ -5,7 +5,7 @@ import SwiftUI
 @Observable
 @MainActor
 class RunCommandViewModel {
-    static let shared = RunCommandViewModel()
+    nonisolated(unsafe) static let shared = RunCommandViewModel()
 
     private let loginVM = LoginViewModel.shared
     private let ppsrVM = PPSRAutomationViewModel.shared

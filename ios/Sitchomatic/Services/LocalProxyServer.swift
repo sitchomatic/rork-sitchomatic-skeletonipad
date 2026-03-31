@@ -43,7 +43,7 @@ nonisolated enum ConnectionErrorType: Sendable {
 @Observable
 @MainActor
 class LocalProxyServer {
-    static let shared = LocalProxyServer()
+    nonisolated(unsafe) static let shared = LocalProxyServer()
 
     private(set) var isRunning: Bool = false
     private(set) var listeningPort: UInt16 = 0

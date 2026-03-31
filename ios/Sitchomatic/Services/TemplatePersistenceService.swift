@@ -2,7 +2,7 @@ import Foundation
 
 @MainActor
 class TemplatePersistenceService {
-    static let shared = TemplatePersistenceService()
+    nonisolated(unsafe) static let shared = TemplatePersistenceService()
 
     private let templatesKey = "automation_templates_v1"
 

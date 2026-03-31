@@ -52,7 +52,7 @@ nonisolated enum ImportableItem: Sendable {
 @Observable
 @MainActor
 class UnifiedImportExportService {
-    static let shared = UnifiedImportExportService()
+    nonisolated(unsafe) static let shared = UnifiedImportExportService()
 
     let logger = DebugLogger.shared
 

@@ -3,7 +3,7 @@ import UIKit
 
 @MainActor
 final class MemoryPressureMonitor {
-    static let shared = MemoryPressureMonitor()
+    nonisolated(unsafe) static let shared = MemoryPressureMonitor()
 
     private var observers: [() -> Void] = []
     private var isRegistered: Bool = false

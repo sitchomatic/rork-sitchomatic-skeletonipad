@@ -2,7 +2,7 @@ import Foundation
 
 @MainActor
 class WebViewLifetimeBudgetService {
-    static let shared = WebViewLifetimeBudgetService()
+    nonisolated(unsafe) static let shared = WebViewLifetimeBudgetService()
 
     private let logger = DebugLogger.shared
     private var navigationCounts: [String: Int] = [:]

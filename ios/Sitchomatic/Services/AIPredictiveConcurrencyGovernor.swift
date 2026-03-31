@@ -35,7 +35,7 @@ nonisolated struct GovernorStore: Codable, Sendable {
 
 @MainActor
 class AIPredictiveConcurrencyGovernor {
-    static let shared = AIPredictiveConcurrencyGovernor()
+    nonisolated(unsafe) static let shared = AIPredictiveConcurrencyGovernor()
 
     private let logger = DebugLogger.shared
     private let crashProtection = CrashProtectionService.shared
