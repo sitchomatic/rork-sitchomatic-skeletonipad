@@ -30,7 +30,7 @@ class ScreenshotCache {
         batchScreenshotCount += 1
 
         recentStoreTimestamps.append(now)
-        recentStoreTimestamps = recentStoreTimestamps.filter { now.timeIntervalSince($0) < 1.0 }
+        recentStoreTimestamps.removeAll { now.timeIntervalSince($0) >= 1.0 }
         if recentStoreTimestamps.count > 5 && !diskOnlyMode {
             diskOnlyMode = true
             diskOnlyModeExpiry = now.addingTimeInterval(5)
@@ -69,8 +69,11 @@ class ScreenshotCache {
 
     func storeData(_ data: Data, forKey key: String) {
         let fileURL = fileURL(for: key)
-        Task.detached(priority: .utility) {
+        Task.detached(priority: .utility) { [weak self] in
             try? data.write(to: fileURL, options: .atomic)
+            await MainActor.run {
+                self?.evictDiskCacheIfNeeded()
+            }
         }
 
         if let image = UIImage(data: data), !diskOnlyMode, !CrashProtectionService.shared.isMemoryCritical {
@@ -111,7 +114,7 @@ class ScreenshotCache {
         batchScreenshotCount += 1
 
         recentStoreTimestamps.append(now)
-        recentStoreTimestamps = recentStoreTimestamps.filter { now.timeIntervalSince($0) < 1.0 }
+        recentStoreTimestamps.removeAll { now.timeIntervalSince($0) >= 1.0 }
         if recentStoreTimestamps.count > 5 && !diskOnlyMode {
             diskOnlyMode = true
             diskOnlyModeExpiry = now.addingTimeInterval(5)
