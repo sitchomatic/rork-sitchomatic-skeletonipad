@@ -2,7 +2,7 @@ import Foundation
 
 @MainActor
 class CoordinateInteractionEngine {
-    nonisolated(unsafe) static let shared = CoordinateInteractionEngine()
+    static let shared = CoordinateInteractionEngine()
 
     private let logger = DebugLogger.shared
 

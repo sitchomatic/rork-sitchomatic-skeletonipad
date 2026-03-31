@@ -4,7 +4,7 @@ import WebKit
 
 @MainActor
 class DebugLoginButtonService {
-    nonisolated(unsafe) static let shared = DebugLoginButtonService()
+    static let shared = DebugLoginButtonService()
 
     private let persistKey = "debug_login_button_configs_v1"
     private let logger = DebugLogger.shared

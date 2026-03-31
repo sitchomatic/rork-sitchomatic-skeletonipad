@@ -37,7 +37,7 @@ nonisolated struct BatchAnalytics: Sendable {
 
 @MainActor
 final class AIAutomationCoordinator {
-    nonisolated(unsafe) static let shared = AIAutomationCoordinator()
+    static let shared = AIAutomationCoordinator()
 
     private let logger = DebugLogger.shared
     private let visionML = VisionMLService.shared

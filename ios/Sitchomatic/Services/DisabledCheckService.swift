@@ -6,7 +6,7 @@ import UIKit
 @Observable
 @MainActor
 class DisabledCheckService {
-    nonisolated(unsafe) static let shared = DisabledCheckService()
+    static let shared = DisabledCheckService()
 
     var isRunning: Bool = false
     var progress: Double = 0

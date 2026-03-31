@@ -5,7 +5,7 @@ import UIKit
 
 @MainActor
 final class GrokUsageStats {
-    nonisolated(unsafe) static let shared = GrokUsageStats()
+    static let shared = GrokUsageStats()
 
     private(set) var totalCalls: Int = 0
     private(set) var successfulCalls: Int = 0
@@ -71,7 +71,7 @@ nonisolated struct GrokVisionAnalysisResult: Sendable {
 
 @MainActor
 final class RorkToolkitService {
-    nonisolated(unsafe) static let shared = RorkToolkitService()
+    static let shared = RorkToolkitService()
 
     private let logger = DebugLogger.shared
     private let baseURL = "https://api.x.ai"

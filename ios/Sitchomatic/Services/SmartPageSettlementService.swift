@@ -3,7 +3,7 @@ import WebKit
 
 @MainActor
 class SmartPageSettlementService {
-    nonisolated(unsafe) static let shared = SmartPageSettlementService()
+    static let shared = SmartPageSettlementService()
 
     private let logger = DebugLogger.shared
     private var hostSettlementHistory: [String: [Int]] = [:]

@@ -5,7 +5,7 @@ import os.signpost
 
 @MainActor
 final class PerformanceInstrumentation {
-    nonisolated(unsafe) static let shared = PerformanceInstrumentation()
+    static let shared = PerformanceInstrumentation()
 
     private let logger = DebugLogger.shared
 

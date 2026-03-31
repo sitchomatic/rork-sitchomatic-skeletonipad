@@ -48,7 +48,7 @@ public final class HyperFlowExecutor: Sendable {
 @Observable
 @MainActor
 public final class WebViewPool {
-    public nonisolated(unsafe) static let shared = WebViewPool()
+    public static let shared = WebViewPool()
     public var activeViews: [UUID: WKWebView] = [:]
 
     private init() {}
@@ -465,7 +465,7 @@ public final class HeadlessWebViewWorker: NSObject, WKNavigationDelegate, WKScri
 /// Orchestrates PairedTasks across the engine with WebViewRecycler integration.
 @MainActor
 public final class AutomationOrchestrator {
-    public nonisolated(unsafe) static let shared = AutomationOrchestrator()
+    public static let shared = AutomationOrchestrator()
 
     private let logger = Logger(subsystem: "com.hyperflow.scraper", category: "Orchestrator")
     private let maxConcurrentPairs = DeviceCapability.performanceProfile.maxConcurrentPairs

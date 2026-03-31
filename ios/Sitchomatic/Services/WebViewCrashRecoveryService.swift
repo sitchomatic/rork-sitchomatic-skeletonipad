@@ -3,7 +3,7 @@ import Foundation
 
 @MainActor
 class WebViewCrashRecoveryService {
-    nonisolated(unsafe) static let shared = WebViewCrashRecoveryService()
+    static let shared = WebViewCrashRecoveryService()
 
     private let logger = DebugLogger.shared
     private let maxRecoveriesPerSession: Int = 3

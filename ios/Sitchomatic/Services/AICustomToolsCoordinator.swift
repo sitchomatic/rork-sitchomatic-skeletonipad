@@ -61,7 +61,7 @@ nonisolated struct CoordinatorStore: Codable, Sendable {
 
 @MainActor
 class AICustomToolsCoordinator {
-    nonisolated(unsafe) static let shared = AICustomToolsCoordinator()
+    static let shared = AICustomToolsCoordinator()
 
     private let logger = DebugLogger.shared
     private let persistKey = "AICustomToolsCoordinator_v1"

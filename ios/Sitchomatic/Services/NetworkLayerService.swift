@@ -5,7 +5,7 @@ import Observation
 @Observable
 @MainActor
 class NetworkLayerService {
-    nonisolated(unsafe) static let shared = NetworkLayerService()
+    static let shared = NetworkLayerService()
 
     private let proxyService = ProxyRotationService.shared
     private let protocolTester = VPNProtocolTestService.shared

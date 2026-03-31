@@ -33,7 +33,7 @@ nonisolated struct ProxyHealthEvent: Identifiable, Sendable {
 @Observable
 @MainActor
 class ProxyHealthMonitor {
-    nonisolated(unsafe) static let shared = ProxyHealthMonitor()
+    static let shared = ProxyHealthMonitor()
 
     private(set) var upstreamHealth: UpstreamHealthStatus = UpstreamHealthStatus()
     private(set) var isMonitoring: Bool = false

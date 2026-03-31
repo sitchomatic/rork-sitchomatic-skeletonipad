@@ -3,7 +3,7 @@ import UIKit
 
 @MainActor
 class StrictLoginDetectionEngine {
-    nonisolated(unsafe) static let shared = StrictLoginDetectionEngine()
+    static let shared = StrictLoginDetectionEngine()
 
     private let logger = DebugLogger.shared
     private let visionOCR = VisionTextCropService.shared

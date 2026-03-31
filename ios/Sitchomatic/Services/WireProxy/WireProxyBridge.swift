@@ -41,7 +41,7 @@ struct WireProxyTunnelSlot {
 @Observable
 @MainActor
 class WireProxyBridge {
-    nonisolated(unsafe) static let shared = WireProxyBridge()
+    static let shared = WireProxyBridge()
 
     private(set) var status: WireProxyStatus = .stopped
     private(set) var stats: WireProxyStats = WireProxyStats()

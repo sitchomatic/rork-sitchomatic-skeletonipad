@@ -64,7 +64,7 @@ nonisolated struct NordRegionPool: Sendable {
 @Observable
 @MainActor
 class NordServerIntelligence {
-    nonisolated(unsafe) static let shared = NordServerIntelligence()
+    static let shared = NordServerIntelligence()
 
     private(set) var regionPools: [Int: NordRegionPool] = [:]
     private(set) var lastGlobalRefresh: Date?

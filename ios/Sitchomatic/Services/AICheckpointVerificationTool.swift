@@ -78,7 +78,7 @@ nonisolated struct FlowAccuracyProfile: Codable, Sendable {
 
 @MainActor
 class AICheckpointVerificationTool {
-    nonisolated(unsafe) static let shared = AICheckpointVerificationTool()
+    static let shared = AICheckpointVerificationTool()
 
     private let logger = DebugLogger.shared
     private let persistKey = "AICheckpointVerificationTool_v1"

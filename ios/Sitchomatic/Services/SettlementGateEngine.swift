@@ -2,7 +2,7 @@ import Foundation
 
 @MainActor
 class SettlementGateEngine {
-    nonisolated(unsafe) static let shared = SettlementGateEngine()
+    static let shared = SettlementGateEngine()
 
     private let logger = DebugLogger.shared
 

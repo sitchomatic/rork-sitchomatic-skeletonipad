@@ -41,7 +41,7 @@ nonisolated enum ActiveNetworkConfig: Sendable {
 
 @MainActor
 class NetworkSessionFactory {
-    nonisolated(unsafe) static let shared = NetworkSessionFactory()
+    static let shared = NetworkSessionFactory()
 
     private let proxyService = ProxyRotationService.shared
     private let deviceProxy = DeviceProxyService.shared

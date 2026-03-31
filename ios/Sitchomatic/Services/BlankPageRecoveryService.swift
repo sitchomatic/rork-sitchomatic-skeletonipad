@@ -4,7 +4,7 @@ import WebKit
 
 @MainActor
 class BlankPageRecoveryService {
-    nonisolated(unsafe) static let shared = BlankPageRecoveryService()
+    static let shared = BlankPageRecoveryService()
 
     private let logger = DebugLogger.shared
 

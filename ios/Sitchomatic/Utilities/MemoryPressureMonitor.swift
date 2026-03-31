@@ -5,7 +5,7 @@ import UIKit
 /// Registers for UIKit memory warnings and dispatches typed cleanup handlers.
 @MainActor
 final class MemoryPressureMonitor {
-    nonisolated(unsafe) static let shared = MemoryPressureMonitor()
+    static let shared = MemoryPressureMonitor()
 
     private var observers: [@MainActor (MemoryTier) -> Void] = []
     private var isRegistered: Bool = false

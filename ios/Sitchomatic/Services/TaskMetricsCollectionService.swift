@@ -3,7 +3,7 @@ import Synchronization
 
 @MainActor
 class TaskMetricsCollectionService {
-    nonisolated(unsafe) static let shared = TaskMetricsCollectionService()
+    static let shared = TaskMetricsCollectionService()
 
     private let logger = DebugLogger.shared
     private var recentMetrics: [NetworkProbeMetrics] = []

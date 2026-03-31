@@ -71,7 +71,7 @@ nonisolated struct AIAnalysisStats: Sendable {
 
 @MainActor
 final class AIAnalysisEngine {
-    nonisolated(unsafe) static let shared = AIAnalysisEngine()
+    static let shared = AIAnalysisEngine()
 
     private let logger = DebugLogger.shared
     private let grokService = RorkToolkitService.shared

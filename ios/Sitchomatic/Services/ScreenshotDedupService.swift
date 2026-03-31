@@ -3,7 +3,7 @@ import UIKit
 
 @MainActor
 class ScreenshotDedupService {
-    nonisolated(unsafe) static let shared = ScreenshotDedupService()
+    static let shared = ScreenshotDedupService()
 
     private let logger = DebugLogger.shared
     private var recentHashes: [Int] = []

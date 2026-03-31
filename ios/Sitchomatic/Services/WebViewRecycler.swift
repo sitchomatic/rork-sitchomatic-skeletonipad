@@ -3,7 +3,7 @@ import Foundation
 
 @MainActor
 final class WebViewRecycler {
-    nonisolated(unsafe) static let shared = WebViewRecycler()
+    static let shared = WebViewRecycler()
 
     private var availableViews: [WKWebView] = []
     private let logger = DebugLogger.shared

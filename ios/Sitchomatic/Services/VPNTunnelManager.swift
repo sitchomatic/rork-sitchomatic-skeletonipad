@@ -55,7 +55,7 @@ nonisolated struct VPNConnectionEvent: Identifiable, Sendable {
 @Observable
 @MainActor
 class VPNTunnelManager {
-    nonisolated(unsafe) static let shared = VPNTunnelManager()
+    static let shared = VPNTunnelManager()
 
     private(set) var status: VPNTunnelStatus = .disconnected
     private(set) var connectedSince: Date?

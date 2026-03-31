@@ -4,7 +4,7 @@ import Observation
 @Observable
 @MainActor
 class ReviewQueueService {
-    nonisolated(unsafe) static let shared = ReviewQueueService()
+    static let shared = ReviewQueueService()
 
     var items: [ReviewItem] = []
     private let confidenceEngine = ConfidenceResultEngine.shared

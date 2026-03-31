@@ -76,7 +76,7 @@ nonisolated struct BatchInsightStore: Codable, Sendable {
 
 @MainActor
 class AIBatchInsightTuningTool {
-    nonisolated(unsafe) static let shared = AIBatchInsightTuningTool()
+    static let shared = AIBatchInsightTuningTool()
 
     private let logger = DebugLogger.shared
     private let persistKey = "AIBatchInsightTuningTool_v1"

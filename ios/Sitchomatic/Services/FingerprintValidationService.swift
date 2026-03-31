@@ -3,7 +3,7 @@ import WebKit
 
 @MainActor
 class FingerprintValidationService {
-    nonisolated(unsafe) static let shared = FingerprintValidationService()
+    static let shared = FingerprintValidationService()
 
     private(set) var lastScore: FingerprintScore?
     private(set) var scoreHistory: [FingerprintScore] = []

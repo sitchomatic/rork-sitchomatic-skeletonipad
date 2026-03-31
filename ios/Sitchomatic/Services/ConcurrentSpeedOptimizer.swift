@@ -2,7 +2,7 @@ import Foundation
 
 @MainActor
 class ConcurrentSpeedOptimizer {
-    nonisolated(unsafe) static let shared = ConcurrentSpeedOptimizer()
+    static let shared = ConcurrentSpeedOptimizer()
 
     private let logger = DebugLogger.shared
 

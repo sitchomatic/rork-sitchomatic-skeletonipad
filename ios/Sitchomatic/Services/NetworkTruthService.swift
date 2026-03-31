@@ -60,7 +60,7 @@ nonisolated struct NetworkTruthSnapshot: Identifiable, Sendable {
 @Observable
 @MainActor
 class NetworkTruthService {
-    nonisolated(unsafe) static let shared = NetworkTruthService()
+    static let shared = NetworkTruthService()
 
     private(set) var currentSnapshot: NetworkTruthSnapshot = NetworkTruthSnapshot(routeType: "Unknown")
     private(set) var snapshotHistory: [NetworkTruthSnapshot] = []

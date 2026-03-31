@@ -337,7 +337,7 @@ typealias PPSRDebugScreenshot = CapturedScreenshot
 @Observable
 @MainActor
 class UnifiedScreenshotManager {
-    nonisolated(unsafe) static let shared = UnifiedScreenshotManager()
+    static let shared = UnifiedScreenshotManager()
 
     var screenshots: [CapturedScreenshot] = []
     var analysisStats: AnalysisStats = AnalysisStats()

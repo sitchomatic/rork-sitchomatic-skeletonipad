@@ -4,7 +4,7 @@ import ActivityKit
 
 @MainActor
 class BackgroundTaskService {
-    nonisolated(unsafe) static let shared = BackgroundTaskService()
+    static let shared = BackgroundTaskService()
     static let batchProcessingIdentifier = "Sitchomatic.ios77.batchProcessing"
 
     private var backgroundTask: UIBackgroundTaskIdentifier = .invalid

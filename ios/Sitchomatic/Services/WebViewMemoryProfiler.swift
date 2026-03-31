@@ -41,7 +41,7 @@ nonisolated struct MemoryWaterfallEntry: Sendable, Identifiable {
 @Observable
 @MainActor
 final class WebViewMemoryProfiler {
-    nonisolated(unsafe) static let shared = WebViewMemoryProfiler()
+    static let shared = WebViewMemoryProfiler()
 
     private let logger = DebugLogger.shared
 

@@ -4,7 +4,7 @@ import UIKit
 
 @MainActor
 class RenderStableScreenshotService {
-    nonisolated(unsafe) static let shared = RenderStableScreenshotService()
+    static let shared = RenderStableScreenshotService()
 
     private let logger = DebugLogger.shared
     private let maxStabilityChecks: Int = 6

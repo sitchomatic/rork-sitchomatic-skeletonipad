@@ -4,7 +4,7 @@ import UIKit
 
 @MainActor
 class AntiBotDetectionService {
-    nonisolated(unsafe) static let shared = AntiBotDetectionService()
+    static let shared = AntiBotDetectionService()
 
     private let logger = DebugLogger.shared
     private let visionML = VisionMLService.shared

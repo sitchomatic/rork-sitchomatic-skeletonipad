@@ -96,7 +96,7 @@ nonisolated struct FingerprintTuningStore: Codable, Sendable {
 
 @MainActor
 class AIFingerprintTuningService {
-    nonisolated(unsafe) static let shared = AIFingerprintTuningService()
+    static let shared = AIFingerprintTuningService()
 
     private let logger = DebugLogger.shared
     private let persistenceKey = "AIFingerprintTuningData_v1"
