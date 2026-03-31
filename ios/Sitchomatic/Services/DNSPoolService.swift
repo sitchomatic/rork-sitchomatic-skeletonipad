@@ -391,14 +391,12 @@ class DNSPoolService {
         let params = NWParameters(tls: tlsOptions, tcp: tcpOptions)
         let connection = NWConnection(host: host, port: port, using: params)
 
-        let resumed = UnsafeSendableBox(false)
+        let guard_ = ContinuationGuard()
 
         return await withCheckedContinuation { continuation in
             @Sendable func safeResume(_ value: DNSAnswer?) {
-                if !resumed.value {
-                    resumed.value = true
-                    continuation.resume(returning: value)
-                }
+                guard guard_.tryConsume() else { return }
+                continuation.resume(returning: value)
             }
 
             let timeoutItem = DispatchWorkItem { [weak connection] in
@@ -766,18 +764,23 @@ typealias PPSRDoHService = DNSPoolService
 
 /// Thread-safe mutable box using `Mutex` from the Synchronization framework.
 /// Replaces the `@unchecked Sendable` pattern with proper synchronization.
+///
+/// Use `withLock(_:)` for atomic read-modify-write. Use `value` for snapshots.
 nonisolated final class SendableBox<T: Sendable>: Sendable {
     private let storage: Mutex<T>
     init(_ value: T) { storage = Mutex(value) }
 
+    /// Read-only snapshot of the current value.
     var value: T {
-        get { storage.withLock { $0 } }
+        storage.withLock { $0 }
     }
 
+    /// Atomically replace the stored value.
     func update(_ newValue: T) {
         storage.withLock { $0 = newValue }
     }
 
+    /// Atomically access and modify the stored value.
     @discardableResult
     func withLock<R>(_ body: (inout T) -> R) -> R {
         storage.withLock(body)

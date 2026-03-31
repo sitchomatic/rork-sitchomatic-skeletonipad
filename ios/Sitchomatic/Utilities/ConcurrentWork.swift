@@ -45,7 +45,7 @@ enum ConcurrentWork {
     static func encodeJSON<T: Encodable & Sendable>(_ value: T, prettyPrint: Bool = false) async -> Data? {
         await offload(priority: .utility) {
             let encoder = JSONEncoder()
-            if prettyPrint { encoder.outputFormatting = [.prettyPrinted, .sortedKeys] }
+            if prettyPrint { encoder.outputFormatting = .prettyPrinted }
             return try? encoder.encode(value)
         }
     }

@@ -56,7 +56,7 @@ final class BatchStateManager {
     private var forceStopDelay: Duration {
         DeviceCapability.isM5Class ? .seconds(45) : (DeviceCapability.isHighPerformanceDevice ? .seconds(30) : .seconds(20))
     }
-    private let pauseDuration: Duration = .seconds(60)
+    private let pauseDurationSeconds: Int = 60
     private var heartbeatInterval: Duration {
         DeviceCapability.isM5Class ? .seconds(10) : .seconds(15)
     }
@@ -104,7 +104,7 @@ final class BatchStateManager {
     func pause() {
         guard isRunning, !isPaused, !isStopping else { return }
         isPaused = true
-        pauseCountdown = Int(pauseDuration.components.seconds)
+        pauseCountdown = pauseDurationSeconds
         startPauseCountdown()
         onPause?()
         logger.log("BatchStateManager: paused for \(pauseCountdown)s", category: .automation, level: .warning)

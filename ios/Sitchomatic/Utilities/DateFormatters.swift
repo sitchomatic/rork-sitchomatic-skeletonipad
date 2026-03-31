@@ -1,8 +1,10 @@
 import Foundation
 
 /// Pre-configured date formatters for consistent date/time formatting throughout the app.
-/// All formatters are created once as `static let` and are immutable after initialization.
-/// Thread-safe: `DateFormatter` instances are safe to use from any thread when not mutated.
+/// All formatters are created once as `static let` closures and never mutated after initialization.
+/// Marked `nonisolated(unsafe)` because `DateFormatter` is not `Sendable`, but these instances
+/// are immutable after init and safe to read concurrently. This is the standard Swift 6.2 pattern
+/// for sharing non-Sendable reference types that are never mutated after initialization.
 nonisolated enum DateFormatters: Sendable {
     static nonisolated(unsafe) let timeWithMillis: DateFormatter = {
         let f = DateFormatter()
