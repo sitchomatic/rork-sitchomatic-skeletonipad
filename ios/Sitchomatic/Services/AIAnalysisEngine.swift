@@ -180,8 +180,18 @@ final class AIAnalysisEngine {
                 logger.log("AIAnalysisEngine: queued request \(request.id.uuidString.prefix(8)) (priority: \(request.priority), queue size: \(requestQueue.count))", category: .evaluation, level: .debug)
 
                 // Wait for queue to process
-                while requestQueue.contains(where: { $0.id == request.id }) {
+                while !Task.isCancelled && requestQueue.contains(where: { $0.id == request.id }) {
                     try? await Task.sleep(for: .milliseconds(100))
+                }
+
+                // If cancelled while queued, remove from queue and stop processing
+                if Task.isCancelled {
+                    if let index = requestQueue.firstIndex(where: { $0.id == request.id }) {
+                        requestQueue.remove(at: index)
+                    }
+                    logger.log("AIAnalysisEngine: cancelled queued request \(request.id.uuidString.prefix(8))", category: .evaluation, level: .info)
+                    stats.failedRequests += 1
+                    return nil
                 }
 
                 // Check cache again after waiting (in case another request cached it)

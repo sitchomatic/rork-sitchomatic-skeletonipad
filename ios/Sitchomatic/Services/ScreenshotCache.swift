@@ -2,7 +2,7 @@ import Foundation
 import UIKit
 
 @MainActor
-class ScreenshotCache {
+final class ScreenshotCache {
     nonisolated(unsafe) static let shared = ScreenshotCache()
 
     private let cacheDirectory: URL

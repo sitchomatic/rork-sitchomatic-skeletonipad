@@ -77,8 +77,12 @@ final class BatchStateManager {
         batchStartTime = Date()
         batchEndTime = nil
 
-        // Pre-warm recycler pool at batch start
-        WebViewRecycler.shared.prewarm()
+        // Pre-warm recycler pool at batch start without blocking the main actor.
+        Task.detached {
+            await MainActor.run {
+                WebViewRecycler.shared.prewarm()
+            }
+        }
 
         startHeartbeat()
         logger.log("BatchStateManager: batch started (total=\(totalItems))", category: .automation, level: .info)
