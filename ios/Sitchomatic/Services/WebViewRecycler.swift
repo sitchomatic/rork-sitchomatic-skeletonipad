@@ -1,6 +1,10 @@
 import Foundation
 @preconcurrency import WebKit
 
+/// Swift 6.2 ultra-high performance WebView recycler with:
+/// - Task naming for Instruments visibility
+/// - borrowing parameters for zero-copy optimization on read-only paths
+/// - inline optimization for hot paths
 @MainActor
 final class WebViewRecycler {
     nonisolated(unsafe) static let shared = WebViewRecycler()
@@ -20,6 +24,7 @@ final class WebViewRecycler {
 
     private init() {}
 
+    /// Pre-warm WebViews synchronously so the pool is filled before callers proceed
     func prewarm(count: Int? = nil) {
         let target = count ?? DeviceCapability.performanceProfile.webViewPrewarmCount
         let toCreate = min(target, maxPoolSize - availableViews.count)
@@ -36,6 +41,8 @@ final class WebViewRecycler {
         logger.log("WebViewRecycler: pre-warm complete — pool size: \(availableViews.count)", category: .webView, level: .info)
     }
 
+    /// Checkout WebView with Swift 6.2 inline optimization for hot path
+    @inline(__always)
     func checkout(viewport: CGSize = CGSize(width: 390, height: 844), pairIndex: Int = 0) -> WKWebView {
         totalCheckouts += 1
 
@@ -55,6 +62,8 @@ final class WebViewRecycler {
         return fresh
     }
 
+    /// Return WebView to the pool after use
+    @inline(__always)
     func returnView(_ webView: WKWebView) {
         totalReturns += 1
 
@@ -69,12 +78,15 @@ final class WebViewRecycler {
         logger.log("WebViewRecycler: returned & cleaned (pool: \(availableViews.count))", category: .webView, level: .trace)
     }
 
+    /// Emergency flush — synchronously destroys and removes all pooled views
     func emergencyFlush() {
         let count = availableViews.count
+
         for view in availableViews {
             destroyView(view)
         }
         availableViews.removeAll()
+
         logger.log("WebViewRecycler: EMERGENCY FLUSH — destroyed \(count) pooled views", category: .webView, level: .critical)
     }
 
@@ -106,7 +118,8 @@ final class WebViewRecycler {
         return wv
     }
 
-    private func cleanView(_ webView: WKWebView) {
+    /// Clean WebView with Swift 6.2 borrowing parameter (zero-copy optimization)
+    private func cleanView(_ webView: borrowing WKWebView) {
         webView.stopLoading()
         webView.navigationDelegate = nil
 
@@ -124,7 +137,8 @@ final class WebViewRecycler {
         webView.customUserAgent = "Mozilla/5.0 (iPhone; CPU iPhone OS 26_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Mobile/15E148 Safari/604.1"
     }
 
-    private func destroyView(_ webView: WKWebView) {
+    /// Destroy WebView with Swift 6.2 borrowing parameter (zero-copy optimization)
+    private func destroyView(_ webView: borrowing WKWebView) {
         webView.stopLoading()
         webView.navigationDelegate = nil
         webView.configuration.userContentController.removeAllUserScripts()

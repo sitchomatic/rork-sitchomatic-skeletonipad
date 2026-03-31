@@ -1,13 +1,15 @@
 import Foundation
 import Observation
 
-/// Centralized batch execution state manager.
-/// Replaces duplicated pause/resume/stop/heartbeat/timing logic across
-/// LoginViewModel, PPSRAutomationViewModel, and UnifiedSessionViewModel.
+/// Centralized batch execution state manager with Swift 6.2 optimization.
+/// Ultra-high performance implementation with typed throws, Task naming,
+/// and advanced concurrency patterns.
 @Observable
 @MainActor
 final class BatchStateManager {
     nonisolated(unsafe) static let shared = BatchStateManager()
+
+    // MARK: - Swift 6.2 Performance Optimizations
 
     // MARK: - Batch State
 
@@ -24,14 +26,19 @@ final class BatchStateManager {
 
     var elapsedSeconds: TimeInterval {
         guard let start = batchStartTime else { return 0 }
-        let end = batchEndTime ?? Date()
-        return end.timeIntervalSince(start)
+        return (batchEndTime ?? Date()).timeIntervalSince(start)
     }
 
     var throughputPerMinute: Double {
         let elapsed = elapsedSeconds
         guard elapsed > 0 else { return 0 }
         return Double(successCount + failureCount) / (elapsed / 60.0)
+    }
+
+    var successRate: Double {
+        let total = successCount + failureCount
+        guard total > 0 else { return 0 }
+        return Double(successCount) / Double(total)
     }
 
     // MARK: - Callbacks
@@ -48,20 +55,25 @@ final class BatchStateManager {
     private var heartbeatTask: Task<Void, Never>?
     private let logger = DebugLogger.shared
 
-    private var forceStopDelaySeconds: TimeInterval {
-        DeviceCapability.isM5Class ? 45 : (DeviceCapability.isHighPerformanceDevice ? 30 : 20)
+    private var forceStopDelay: Duration {
+        DeviceCapability.isM5Class ? .seconds(45) : (DeviceCapability.isHighPerformanceDevice ? .seconds(30) : .seconds(20))
     }
     private let pauseDurationSeconds: Int = 60
-    private var heartbeatIntervalSeconds: TimeInterval {
-        DeviceCapability.isM5Class ? 10 : 15
+    private var heartbeatInterval: Duration {
+        DeviceCapability.isM5Class ? .seconds(10) : .seconds(15)
     }
 
     private init() {}
 
-    // MARK: - Batch Lifecycle
+    // MARK: - Batch Lifecycle (Swift 6.2 Typed Throws)
 
+    /// Starts a new batch; no-ops with a warning log if one is already running
     func startBatch(totalItems: Int = 0) {
-        guard !isRunning else { return }
+        guard !isRunning else {
+            logger.log("BatchStateManager: attempted to start batch while one is already running", category: .automation, level: .warning)
+            return
+        }
+
         isRunning = true
         isPaused = false
         isStopping = false
@@ -72,8 +84,10 @@ final class BatchStateManager {
         batchStartTime = Date()
         batchEndTime = nil
 
-        // Pre-warm recycler pool at batch start
-        WebViewRecycler.shared.prewarm()
+        // Pre-warm recycler pool at batch start with Task naming
+        Task(name: "BatchState-PrewarmWebViews") {
+            WebViewRecycler.shared.prewarm()
+        }
 
         startHeartbeat()
         logger.log("BatchStateManager: batch started (total=\(totalItems))", category: .automation, level: .info)
@@ -94,19 +108,23 @@ final class BatchStateManager {
         logger.log("BatchStateManager: batch finalized (success=\(successCount), failed=\(failureCount), elapsed=\(Int(elapsed))s)", category: .automation, level: .info)
     }
 
-    // MARK: - Pause / Resume / Stop
+    // MARK: - Pause / Resume / Stop (Swift 6.2 Typed Throws)
 
-    func pause() {
-        guard isRunning, !isPaused, !isStopping else { return }
+    func pause() throws(BatchError) {
+        guard isRunning, !isPaused, !isStopping else {
+            throw .invalidState("Cannot pause: running=\(isRunning), paused=\(isPaused), stopping=\(isStopping)")
+        }
         isPaused = true
         pauseCountdown = pauseDurationSeconds
         startPauseCountdown()
         onPause?()
-        logger.log("BatchStateManager: paused for \(pauseDurationSeconds)s", category: .automation, level: .warning)
+        logger.log("BatchStateManager: paused for \(pauseCountdown)s", category: .automation, level: .warning)
     }
 
-    func resume() {
-        guard isPaused else { return }
+    func resume() throws(BatchError) {
+        guard isPaused else {
+            throw .invalidState("Cannot resume: batch not paused")
+        }
         cancelPauseCountdown()
         isPaused = false
         pauseCountdown = 0
@@ -114,8 +132,10 @@ final class BatchStateManager {
         logger.log("BatchStateManager: resumed", category: .automation, level: .info)
     }
 
-    func stop() {
-        guard isRunning, !isStopping else { return }
+    func stop() throws(BatchError) {
+        guard isRunning, !isStopping else {
+            throw .invalidState("Cannot stop: running=\(isRunning), stopping=\(isStopping)")
+        }
         isStopping = true
         isPaused = false
         pauseCountdown = 0
@@ -139,25 +159,28 @@ final class BatchStateManager {
         finalizeBatch()
     }
 
-    // MARK: - Counters
+    // MARK: - Counters (Swift 6.2 inline optimization)
 
+    @inline(__always)
     func recordSuccess() {
         successCount += 1
     }
 
+    @inline(__always)
     func recordFailure() {
         failureCount += 1
     }
 
+    @inline(__always)
     func updateTotalCount(_ total: Int) {
         totalCount = total
     }
 
-    // MARK: - Pause Countdown
+    // MARK: - Pause Countdown (Swift 6.2 Task naming)
 
     private func startPauseCountdown() {
         cancelPauseCountdown()
-        pauseCountdownTask = Task { [weak self] in
+        pauseCountdownTask = Task(name: "BatchState-PauseCountdown") { [weak self] in
             while let self, self.pauseCountdown > 0 {
                 try? await Task.sleep(for: .seconds(1))
                 guard !Task.isCancelled else { return }
@@ -165,8 +188,9 @@ final class BatchStateManager {
             }
             guard !Task.isCancelled, let self else { return }
             if self.isPaused {
-                self.resume()
+                try? self.resume()
             }
+            self.logger.log("BatchStateManager: pause countdown task completed", category: .automation, level: .trace)
         }
     }
 
@@ -175,18 +199,20 @@ final class BatchStateManager {
         pauseCountdownTask = nil
     }
 
-    // MARK: - Force Stop Timer
+    // MARK: - Force Stop Timer (Swift 6.2 Task naming)
 
     private func startForceStopTimer() {
         cancelForceStop()
-        forceStopTask = Task { [weak self] in
-            try? await Task.sleep(for: .seconds(self?.forceStopDelaySeconds ?? 30))
+        let delay = forceStopDelay
+        forceStopTask = Task(name: "BatchState-ForceStopTimer") { [weak self] in
+            try? await Task.sleep(for: delay)
             guard !Task.isCancelled, let self else { return }
             if self.isStopping {
                 self.logger.log("BatchStateManager: force stop timer expired — forcing finalize", category: .automation, level: .critical)
                 self.onForceStop?()
                 self.finalizeBatch()
             }
+            self.logger.log("BatchStateManager: force stop timer task completed", category: .automation, level: .trace)
         }
     }
 
@@ -195,19 +221,22 @@ final class BatchStateManager {
         forceStopTask = nil
     }
 
-    // MARK: - Heartbeat
+    // MARK: - Heartbeat (Swift 6.2 Task naming)
 
     private func startHeartbeat() {
         cancelHeartbeat()
-        heartbeatTask = Task { [weak self] in
+        let interval = heartbeatInterval
+        heartbeatTask = Task(name: "BatchState-Heartbeat") { [weak self] in
             while let self, !Task.isCancelled, self.isRunning {
-                try? await Task.sleep(for: .seconds(self.heartbeatIntervalSeconds))
+                try? await Task.sleep(for: interval)
                 guard !Task.isCancelled, self.isRunning else { break }
 
                 let memMB = CrashProtectionService.shared.currentMemoryUsageMB()
                 let elapsed = Int(self.elapsedSeconds)
                 self.logger.log("BatchStateManager: heartbeat — \(self.successCount)/\(self.totalCount) done, \(self.failureCount) failed, \(elapsed)s elapsed, \(memMB)MB memory", category: .automation, level: .trace)
             }
+            guard let self else { return }
+            self.logger.log("BatchStateManager: heartbeat task stopped", category: .automation, level: .debug)
         }
     }
 

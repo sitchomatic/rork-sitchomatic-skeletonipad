@@ -136,7 +136,7 @@ actor PersistenceActor {
     private func scheduleCoalescedFlush() {
         coalescingTask?.cancel()
         coalescingTask = Task {
-            try? await Task.sleep(nanoseconds: coalescingDelayMilliseconds * 1_000_000)
+            try? await Task.sleep(for: .milliseconds(coalescingDelayMilliseconds))
             guard !Task.isCancelled else { return }
             await self.flushPendingWrites()
         }
