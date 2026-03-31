@@ -167,6 +167,45 @@ actor ProxyQualityDecayService {
         scoreFor(proxyId: proxyId) < threshold
     }
 
+    // MARK: - Convenience for ProxyConfig
+
+    func recordSuccess(proxyId: UUID, latencyMs: Int) {
+        recordSuccess(proxyId: proxyId.uuidString, latencyMs: latencyMs)
+    }
+
+    func recordFailure(proxyId: UUID, failureType: String = "unknown") {
+        recordFailure(proxyId: proxyId.uuidString, failureType: failureType)
+    }
+
+    func bestProxy(from proxies: [ProxyConfig]) -> ProxyConfig? {
+        guard !proxies.isEmpty else { return nil }
+        if proxies.count == 1 { return proxies.first }
+
+        let scored = proxies.map { proxy -> (ProxyConfig, Double) in
+            let score = scoreFor(proxyId: proxy.id.uuidString)
+            return (proxy, score)
+        }
+
+        let minFloor = 0.15
+        let totalWeight = scored.reduce(0.0) { $0 + max($1.1, minFloor) }
+        var random = Double.random(in: 0..<totalWeight)
+
+        for (proxy, weight) in scored {
+            random -= max(weight, minFloor)
+            if random <= 0 { return proxy }
+        }
+
+        return proxies.last
+    }
+
+    func scoreLabel(for proxyId: UUID) -> String {
+        let id = proxyId.uuidString
+        guard let score = proxyScores[id] else { return "No data" }
+        let pct = Int(score.weightedSuccessRate(halfLife: decayHalfLifeSeconds) * 100)
+        let avg = Int(score.weightedLatencyMs(halfLife: decayHalfLifeSeconds))
+        return "\(pct)% success, \(avg)ms avg"
+    }
+
     func resetAll() {
         proxyScores.removeAll()
         persistScores()

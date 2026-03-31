@@ -68,7 +68,7 @@ class AICustomToolsCoordinator {
     private let maxExecutions = 300
     private var store: CoordinatorStore
 
-    let runHealthAnalyzer = AIRunHealthAnalyzerTool.shared
+    let sessionHealthMonitor = AISessionHealthMonitorService.shared
     let checkpointVerifier = AICheckpointVerificationTool.shared
     let batchInsightTuning = AIBatchInsightTuningTool.shared
 
@@ -115,7 +115,7 @@ class AICustomToolsCoordinator {
             elapsedMs: elapsedMs
         )
 
-        let result = await runHealthAnalyzer.analyzeRunHealth(input: input)
+        let result = await sessionHealthMonitor.analyzeRunHealth(input: input)
         let durationMs = Int(Date().timeIntervalSince(start) * 1000)
 
         let approved = shouldAutoApprove(confidence: result.confidence, isStateChanging: result.decision == .stop || result.decision == .rotateInfra)
@@ -231,7 +231,7 @@ class AICustomToolsCoordinator {
     }
 
     func resetAll() {
-        runHealthAnalyzer.resetAll()
+        sessionHealthMonitor.resetRunHealthData()
         checkpointVerifier.resetAll()
         batchInsightTuning.resetAll()
         store = CoordinatorStore()
