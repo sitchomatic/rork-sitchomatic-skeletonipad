@@ -2,6 +2,7 @@ import Foundation
 @preconcurrency import Dispatch
 @preconcurrency import Network
 import os
+import Synchronization
 
 nonisolated enum DNSProtocolType: String, Codable, Sendable, CaseIterable {
     case doh = "DoH"
@@ -763,7 +764,25 @@ class DNSPoolService {
 
 typealias PPSRDoHService = DNSPoolService
 
-nonisolated final class UnsafeSendableBox<T>: @unchecked Sendable {
-    var value: T
-    init(_ value: T) { self.value = value }
+/// Thread-safe mutable box using `Mutex` from the Synchronization framework.
+/// Replaces the `@unchecked Sendable` pattern with proper synchronization.
+nonisolated final class SendableBox<T: Sendable>: Sendable {
+    private let storage: Mutex<T>
+    init(_ value: T) { storage = Mutex(value) }
+
+    var value: T {
+        get { storage.withLock { $0 } }
+    }
+
+    func update(_ newValue: T) {
+        storage.withLock { $0 = newValue }
+    }
+
+    @discardableResult
+    func withLock<R>(_ body: (inout T) -> R) -> R {
+        storage.withLock(body)
+    }
 }
+
+/// Backward-compatible typealias — prefer `SendableBox` for new code.
+typealias UnsafeSendableBox = SendableBox

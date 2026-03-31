@@ -1,16 +1,18 @@
 import Foundation
 import UIKit
 
+/// Five-tier memory pressure monitor with escalation tracking.
+/// Registers for UIKit memory warnings and dispatches typed cleanup handlers.
 @MainActor
 final class MemoryPressureMonitor {
     nonisolated(unsafe) static let shared = MemoryPressureMonitor()
 
-    private var observers: [() -> Void] = []
+    private var observers: [@MainActor (MemoryTier) -> Void] = []
     private var isRegistered: Bool = false
     private var lastTierTriggered: MemoryTier = .normal
-    private var tierEscalationCount: Int = 0
+    private(set) var tierEscalationCount: Int = 0
 
-    nonisolated enum MemoryTier: Int, Sendable, Comparable {
+    nonisolated enum MemoryTier: Int, Sendable, Comparable, CustomStringConvertible {
         case normal = 0
         case elevated = 1
         case warning = 2
@@ -19,6 +21,16 @@ final class MemoryPressureMonitor {
 
         nonisolated static func < (lhs: MemoryTier, rhs: MemoryTier) -> Bool {
             lhs.rawValue < rhs.rawValue
+        }
+
+        nonisolated var description: String {
+            switch self {
+            case .normal: "NORMAL"
+            case .elevated: "ELEVATED"
+            case .warning: "WARNING"
+            case .critical: "CRITICAL"
+            case .severe: "SEVERE"
+            }
         }
     }
 
@@ -36,29 +48,28 @@ final class MemoryPressureMonitor {
         }
     }
 
-    func onMemoryWarning(_ handler: @escaping @MainActor () -> Void) {
+    /// Register a typed memory warning handler that receives the current pressure tier.
+    func onMemoryWarning(_ handler: @escaping @MainActor (MemoryTier) -> Void) {
         observers.append(handler)
     }
 
+    /// Manually trigger a memory warning at the specified tier.
+    func trigger(tier: MemoryTier) {
+        handleMemoryWarning(tier: tier)
+    }
+
     private func handleMemoryWarning(tier: MemoryTier) {
-        let tierLabel: String
-        switch tier {
-        case .normal: return
-        case .elevated: tierLabel = "ELEVATED"
-        case .warning: tierLabel = "WARNING"
-        case .critical: tierLabel = "CRITICAL"
-        case .severe: tierLabel = "SEVERE"
-        }
+        guard tier > .normal else { return }
 
         if tier > lastTierTriggered {
             tierEscalationCount += 1
         }
         lastTierTriggered = tier
 
-        DebugLogger.shared.log("MEMORY \(tierLabel) — triggering \(observers.count) cleanup handlers (escalations: \(tierEscalationCount))", category: .system, level: tier >= .critical ? .critical : .warning)
+        DebugLogger.shared.log("MEMORY \(tier) — triggering \(observers.count) cleanup handlers (escalations: \(tierEscalationCount))", category: .system, level: tier >= .critical ? .critical : .warning)
 
         for handler in observers {
-            handler()
+            handler(tier)
         }
 
         if tier >= .severe {
@@ -73,4 +84,7 @@ final class MemoryPressureMonitor {
         }
     }
 
+    var diagnosticSummary: String {
+        "MemoryMonitor: tier=\(lastTierTriggered) observers=\(observers.count) escalations=\(tierEscalationCount)"
+    }
 }
