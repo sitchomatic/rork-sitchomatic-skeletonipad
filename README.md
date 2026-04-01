@@ -93,7 +93,7 @@ ios/SitchomaticWidget/            # Widget extension
 
 ### Key Architectural Patterns
 
-- **Swift 6 concurrency** — `@MainActor` isolation on all observable models; `nonisolated(unsafe) static let shared` on @MainActor singletons; actor-based persistence
+- **Swift 6 concurrency** — `@MainActor` isolation on all observable models; `static let shared` on @MainActor singletons; actor-based persistence
 - **Device-adaptive performance** — `DeviceCapability` detects hardware tier and provides dynamic thresholds for concurrency, memory, caching, and WebView limits
 - **Coalesced persistence** — `PersistenceActor` batches rapid writes into single disk operations (500ms window) with read-through pending writes
 - **Singleton service container** — 163 services coordinated through `ServiceContainer` and individual `.shared` singletons
