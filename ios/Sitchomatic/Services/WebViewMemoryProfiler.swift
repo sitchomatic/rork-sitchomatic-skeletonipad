@@ -1,5 +1,4 @@
 import Foundation
-import Observation
 
 // MARK: - Memory Profile Data
 

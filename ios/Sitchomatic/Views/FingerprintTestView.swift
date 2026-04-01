@@ -1,7 +1,6 @@
 import Foundation
 import SwiftUI
 import WebKit
-import Observation
 
 @Observable
 class FPLiveTestSession {

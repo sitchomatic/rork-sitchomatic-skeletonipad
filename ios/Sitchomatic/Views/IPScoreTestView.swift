@@ -1,8 +1,6 @@
-import Foundation
 import SwiftUI
 import WebKit
 import UIKit
-import Observation
 
 @Observable
 class IPScoreSession: Identifiable {

@@ -1,4 +1,3 @@
-import Foundation
 import SwiftUI
 
 struct FloatingTestStatusView: View {

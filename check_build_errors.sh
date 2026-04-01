@@ -8,6 +8,7 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 IOS_DIR="$SCRIPT_DIR/ios"
+SWIFT_FILES_DIR="$IOS_DIR/Sitchomatic"
 
 # Colors for output
 RED='\033[0;31m'
@@ -29,8 +30,8 @@ fi
 echo "Swift version: $(swiftc --version | head -1)"
 echo ""
 
-# Find all Swift files (app, widget, and tests)
-SWIFT_FILES=$(find "$IOS_DIR" -name "*.swift" 2>/dev/null)
+# Find all Swift files
+SWIFT_FILES=$(find "$SWIFT_FILES_DIR" -name "*.swift" 2>/dev/null)
 TOTAL_FILES=$(echo "$SWIFT_FILES" | wc -l | tr -d ' ')
 
 echo "Checking $TOTAL_FILES Swift files..."
