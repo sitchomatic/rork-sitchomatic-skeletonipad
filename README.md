@@ -93,7 +93,7 @@ ios/SitchomaticWidget/            # Widget extension
 
 ### Key Architectural Patterns
 
-- **Swift 6 concurrency** — `@MainActor` isolation on all observable models; `static let shared` on @MainActor singletons; actor-based persistence
+- **Swift 6 concurrency** — `@MainActor` isolation on all observable models; `nonisolated(unsafe) static let shared` on @MainActor singletons; actor-based persistence
 - **Device-adaptive performance** — `DeviceCapability` detects hardware tier and provides dynamic thresholds for concurrency, memory, caching, and WebView limits
 - **Coalesced persistence** — `PersistenceActor` batches rapid writes into single disk operations (500ms window) with read-through pending writes
 - **Singleton service container** — 163 services coordinated through `ServiceContainer` and individual `.shared` singletons
@@ -115,16 +115,6 @@ ios/SitchomaticWidget/            # Widget extension
 4. Build and run (⌘R)
 
 The app uses file-system synchronized groups (`PBXFileSystemSynchronizedRootGroup`), so new Swift files added to the `Sitchomatic/` directory are automatically discovered without editing the project file.
-
-### Build Error Check
-
-To check for build errors without including warnings:
-
-```bash
-./check_build_errors.sh
-```
-
-This script validates all Swift files using `swiftc -parse` and reports only compilation errors (warnings are filtered out). Exit code is 0 if no errors are found, 1 if errors exist.
 
 ### Configuration
 
