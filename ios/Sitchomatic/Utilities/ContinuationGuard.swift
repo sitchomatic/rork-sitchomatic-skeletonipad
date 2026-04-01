@@ -1,16 +1,18 @@
 import Foundation
-import Synchronization
 
-/// Lock-free, single-use continuation guard using Swift 6.2 `Mutex<Bool>`.
-/// Guarantees exactly-once consumption without `@unchecked Sendable`.
-nonisolated final class ContinuationGuard: Sendable {
-    private let state = Mutex(false)
+nonisolated final class ContinuationGuard: @unchecked Sendable {
+    private var consumed = false
+    private let lock = NSLock()
+
+    init() {
+        consumed = false
+    }
 
     func tryConsume() -> Bool {
-        state.withLock { consumed in
-            if consumed { return false }
-            consumed = true
-            return true
-        }
+        lock.lock()
+        defer { lock.unlock() }
+        if consumed { return false }
+        consumed = true
+        return true
     }
 }

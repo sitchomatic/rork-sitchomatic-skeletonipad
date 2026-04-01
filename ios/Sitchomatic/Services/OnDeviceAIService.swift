@@ -49,10 +49,6 @@ final class OnDeviceAIService {
         GrokAISetup.isConfigured || appleModelAvailable
     }
 
-    var appleModelStatus: String {
-        appleModelAvailable ? "available" : "unavailable"
-    }
-
     private var appleModelAvailable: Bool {
         #if canImport(FoundationModels)
         if #available(iOS 26.0, *) {

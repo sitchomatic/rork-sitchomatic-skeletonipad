@@ -24,19 +24,14 @@ final class BatchStateManager {
 
     var elapsedSeconds: TimeInterval {
         guard let start = batchStartTime else { return 0 }
-        return (batchEndTime ?? Date()).timeIntervalSince(start)
+        let end = batchEndTime ?? Date()
+        return end.timeIntervalSince(start)
     }
 
     var throughputPerMinute: Double {
         let elapsed = elapsedSeconds
         guard elapsed > 0 else { return 0 }
         return Double(successCount + failureCount) / (elapsed / 60.0)
-    }
-
-    var successRate: Double {
-        let total = successCount + failureCount
-        guard total > 0 else { return 0 }
-        return Double(successCount) / Double(total)
     }
 
     // MARK: - Callbacks
@@ -53,12 +48,12 @@ final class BatchStateManager {
     private var heartbeatTask: Task<Void, Never>?
     private let logger = DebugLogger.shared
 
-    private var forceStopDelay: Duration {
-        DeviceCapability.isM5Class ? .seconds(45) : (DeviceCapability.isHighPerformanceDevice ? .seconds(30) : .seconds(20))
+    private var forceStopDelaySeconds: TimeInterval {
+        DeviceCapability.isM5Class ? 45 : (DeviceCapability.isHighPerformanceDevice ? 30 : 20)
     }
     private let pauseDurationSeconds: Int = 60
-    private var heartbeatInterval: Duration {
-        DeviceCapability.isM5Class ? .seconds(10) : .seconds(15)
+    private var heartbeatIntervalSeconds: TimeInterval {
+        DeviceCapability.isM5Class ? 10 : 15
     }
 
     private init() {}
@@ -77,12 +72,8 @@ final class BatchStateManager {
         batchStartTime = Date()
         batchEndTime = nil
 
-        // Pre-warm recycler pool at batch start without blocking the main actor.
-        Task.detached {
-            await MainActor.run {
-                WebViewRecycler.shared.prewarm()
-            }
-        }
+        // Pre-warm recycler pool at batch start
+        WebViewRecycler.shared.prewarm()
 
         startHeartbeat()
         logger.log("BatchStateManager: batch started (total=\(totalItems))", category: .automation, level: .info)
@@ -111,7 +102,7 @@ final class BatchStateManager {
         pauseCountdown = pauseDurationSeconds
         startPauseCountdown()
         onPause?()
-        logger.log("BatchStateManager: paused for \(pauseCountdown)s", category: .automation, level: .warning)
+        logger.log("BatchStateManager: paused for \(pauseDurationSeconds)s", category: .automation, level: .warning)
     }
 
     func resume() {
@@ -188,9 +179,8 @@ final class BatchStateManager {
 
     private func startForceStopTimer() {
         cancelForceStop()
-        let delay = forceStopDelay
         forceStopTask = Task { [weak self] in
-            try? await Task.sleep(for: delay)
+            try? await Task.sleep(for: .seconds(self?.forceStopDelaySeconds ?? 30))
             guard !Task.isCancelled, let self else { return }
             if self.isStopping {
                 self.logger.log("BatchStateManager: force stop timer expired — forcing finalize", category: .automation, level: .critical)
@@ -209,10 +199,9 @@ final class BatchStateManager {
 
     private func startHeartbeat() {
         cancelHeartbeat()
-        let interval = heartbeatInterval
         heartbeatTask = Task { [weak self] in
             while let self, !Task.isCancelled, self.isRunning {
-                try? await Task.sleep(for: interval)
+                try? await Task.sleep(for: .seconds(self.heartbeatIntervalSeconds))
                 guard !Task.isCancelled, self.isRunning else { break }
 
                 let memMB = CrashProtectionService.shared.currentMemoryUsageMB()

@@ -1,23 +1,17 @@
 import Foundation
 import UIKit
 
-/// Static device classification and performance profiling.
-/// Provides hardware-aware thresholds for concurrency, memory, and caching.
 enum DeviceCapability {
 
     static let totalRAMBytes: UInt64 = ProcessInfo.processInfo.physicalMemory
     static let totalRAMGB: Int = Int(totalRAMBytes / (1024 * 1024 * 1024))
     static let processorCount: Int = ProcessInfo.processInfo.activeProcessorCount
+
     static let isIPad: Bool = UIDevice.current.userInterfaceIdiom == .pad
 
-    /// M4-class iPad Pro / high-end devices (≥12 GB RAM, ≥8 cores)
-    static let isM4Class: Bool = totalRAMGB >= 12 && processorCount >= 8
-
-    /// M5-class or future ultra-high-end devices (≥16 GB RAM, ≥8 cores)
-    static let isM5Class: Bool = totalRAMGB >= 16 && processorCount >= 8
-
-    /// High-performance devices (≥8 GB RAM, ≥6 cores) — includes M2/M3 iPads
     static let isHighPerformanceDevice: Bool = totalRAMGB >= 8 && processorCount >= 6
+
+    static let isM5Class: Bool = totalRAMGB >= 16 && processorCount >= 8
 
     struct PerformanceProfile: Sendable {
         let maxConcurrentPairs: Int
@@ -47,21 +41,6 @@ enum DeviceCapability {
                 maxRecycledWebViews: 20,
                 screenshotMemoryCacheLimit: 500,
                 screenshotDiskCacheLimit: 3000,
-                screenshotCompressionQuality: 0.4,
-                automationStabilityChecks: 3
-            )
-        } else if isM4Class {
-            return PerformanceProfile(
-                maxConcurrentPairs: 30,
-                memoryThresholdSoftMB: 4500,
-                memoryThresholdHighMB: 7000,
-                memoryThresholdCriticalMB: 9500,
-                memoryThresholdEmergencyMB: 11000,
-                recommendedMaxConcurrency: 15,
-                webViewPrewarmCount: 8,
-                maxRecycledWebViews: 16,
-                screenshotMemoryCacheLimit: 400,
-                screenshotDiskCacheLimit: 2000,
                 screenshotCompressionQuality: 0.4,
                 automationStabilityChecks: 3
             )
@@ -98,19 +77,12 @@ enum DeviceCapability {
         }
     }()
 
-    static var deviceClass: String {
-        if isM5Class { return "M5+" }
-        if isM4Class { return "M4" }
-        if isHighPerformanceDevice { return "High Performance" }
-        return "Standard"
-    }
-
     static var diagnosticSummary: String {
         """
         Device: \(isIPad ? "iPad" : "iPhone")
         RAM: \(totalRAMGB)GB (\(totalRAMBytes / (1024 * 1024))MB)
         Cores: \(processorCount)
-        Class: \(deviceClass)
+        Class: \(isM5Class ? "M5+" : isHighPerformanceDevice ? "High Performance" : "Standard")
         Max Pairs: \(performanceProfile.maxConcurrentPairs)
         Recycler Pool: \(performanceProfile.maxRecycledWebViews)
         Memory Soft: \(performanceProfile.memoryThresholdSoftMB)MB

@@ -45,7 +45,7 @@ class NetworkSessionFactory {
 
     private let proxyService = ProxyRotationService.shared
     private let deviceProxy = DeviceProxyService.shared
-    private let scoring = ProxyQualityDecayService.shared
+    private let scoring = ProxyScoringService.shared
     private let resilience = NetworkResilienceService.shared
     private let logger = DebugLogger.shared
     private let aiProxyStrategy = AIProxyStrategyService.shared
@@ -506,10 +506,14 @@ class NetworkSessionFactory {
             let endpoint = NWEndpoint.hostPort(host: NWEndpoint.Host(host), port: NWEndpoint.Port(integerLiteral: port))
             let connection = NWConnection(to: endpoint, using: .tcp)
             let queue = DispatchQueue(label: "preflight-socks5")
-            let guard_ = ContinuationGuard()
+            let completedBox = UnsafeSendableBox(false)
+            let lock = NSLock()
 
             @Sendable func finish(_ result: Bool) {
-                guard guard_.tryConsume() else { return }
+                lock.lock()
+                defer { lock.unlock() }
+                guard !completedBox.value else { return }
+                completedBox.value = true
                 continuation.resume(returning: result)
             }
 

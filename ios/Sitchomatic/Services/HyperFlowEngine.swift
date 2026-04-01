@@ -30,8 +30,7 @@ public struct PairedTask: Sendable {
 
 /// Custom executor that physically segregates heavy automation workloads
 /// from the application's primary cooperative thread pool.
-/// Immutable after init — no mutable state, safe to share across isolation domains.
-public final class HyperFlowExecutor: Sendable {
+public final class HyperFlowExecutor: @unchecked Sendable {
     public static let shared = HyperFlowExecutor()
     private let hardwareQueue = DispatchQueue(
         label: "com.hyperflow.hardware.queue",

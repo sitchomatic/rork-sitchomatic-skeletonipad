@@ -13,7 +13,7 @@ struct ServiceStatusDashboardView: View {
     private let proxyHealth = ProxyHealthMonitor.shared
     private let networkResilience = NetworkResilienceService.shared
     private let telemetry = BatchTelemetryService.shared
-    private let onDeviceAI = OnDeviceAIService.shared
+    private let onDeviceAI = OnDeviceIntelligenceService.shared
 
     var body: some View {
         List {
@@ -94,12 +94,10 @@ struct ServiceStatusDashboardView: View {
 
             statusRow(
                 icon: "brain.fill",
-                title: "On-Device AI",
-                status: onDeviceAI.isAvailable ? "AVAILABLE" : "FALLBACK",
-                statusColor: onDeviceAI.isAvailable ? .green : .orange,
-                detail: onDeviceAI.isAvailable
-                    ? "Grok: \(GrokAISetup.isConfigured ? "✓" : "✗") · Apple: \(onDeviceAI.appleModelStatus)"
-                    : "Grok: not configured · Apple: unavailable"
+                title: "On-Device Intelligence",
+                status: onDeviceAI.isOnDeviceAvailable ? "AVAILABLE" : "FALLBACK",
+                statusColor: onDeviceAI.isOnDeviceAvailable ? .green : .orange,
+                detail: "On-device: \(onDeviceAI.onDeviceClassificationCount) · Fallback: \(onDeviceAI.fallbackClassificationCount)"
             )
         } header: {
             Label("AI Services", systemImage: "brain")

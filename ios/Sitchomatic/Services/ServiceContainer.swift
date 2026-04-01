@@ -11,6 +11,7 @@ class ServiceContainer {
     let fingerprintValidation: FingerprintValidationService
     let screenshotCache: ScreenshotCache
 
+    let socks5Manager: SOCKS5ProxyManager
     let jsBuilder: LoginJSBuilder
     let typingEngine: HumanTypingEngine
 
@@ -29,6 +30,7 @@ class ServiceContainer {
         self.fingerprintValidation = fingerprintValidation ?? .shared
         self.screenshotCache = screenshotCache ?? .shared
 
+        self.socks5Manager = SOCKS5ProxyManager()
         self.jsBuilder = LoginJSBuilder()
         self.typingEngine = HumanTypingEngine()
     }

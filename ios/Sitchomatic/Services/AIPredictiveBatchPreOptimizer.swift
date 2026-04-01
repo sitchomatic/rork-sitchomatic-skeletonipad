@@ -538,7 +538,10 @@ class AIPredictiveBatchPreOptimizer {
             return []
         }
 
-        let cleaned = AIResponseCleaner.cleanJSON(response)
+        let cleaned = response
+            .replacingOccurrences(of: "```json", with: "")
+            .replacingOccurrences(of: "```", with: "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
 
         guard let data = cleaned.data(using: .utf8),
               let arr = try? JSONSerialization.jsonObject(with: data) as? [String] else { return [] }

@@ -426,7 +426,10 @@ class AIPredictiveConcurrencyGovernor {
 
         guard let response = await RorkToolkitService.shared.generateText(systemPrompt: systemPrompt, userPrompt: "Session data:\n\(jsonStr)") else { return nil }
 
-        let cleaned = AIResponseCleaner.cleanJSON(response)
+        let cleaned = response
+            .replacingOccurrences(of: "```json", with: "")
+            .replacingOccurrences(of: "```", with: "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
 
         guard let data = cleaned.data(using: .utf8),
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],

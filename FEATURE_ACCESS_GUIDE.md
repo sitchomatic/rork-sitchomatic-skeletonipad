@@ -124,7 +124,7 @@ Access via **Main Menu → Settings & Testing**
     - Color: Cyan
     - Features:
       - Core Systems: Batch State Manager, Crash Protection, App Stability
-      - AI Services: AI Analysis Engine, On-Device AI
+      - AI Services: AI Analysis Engine, On-Device Intelligence
       - Network & Proxy: Proxy Orchestrator, Health Monitor, Network Resilience
       - WebView Infrastructure: Recycler, Process Pool, Concurrency Governor
       - Telemetry & Persistence: Batch Telemetry records
@@ -224,7 +224,7 @@ All major services now have UI access:
 - ✅ ProxyOrchestrator → Service Status Dashboard ✨
 - ✅ ProxyHealthMonitor → Service Status Dashboard ✨
 - ✅ NetworkResilienceService → Service Status Dashboard ✨
-- ✅ OnDeviceAIService → Service Status Dashboard
+- ✅ OnDeviceIntelligenceService → Service Status Dashboard ✨
 - ✅ PPSRAutomationEngine → PPSR Console ✨
 
 ### Views Created/Made Accessible in This Update
@@ -276,9 +276,9 @@ Main Menu
 
 ## Summary
 
-**Total Views**: 98 view files
-**Total Services**: 163 services
-**Total Models**: 45 models
+**Total Views**: 100+ view files
+**Total Services**: 166 services
+**Total Models**: 46 models
 
 **All major functionality is now accessible through the UI.** Every significant service has a corresponding management interface or dashboard. The app provides comprehensive monitoring, testing, analytics, and configuration capabilities across all features.
 

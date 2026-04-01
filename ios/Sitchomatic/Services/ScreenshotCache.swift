@@ -2,7 +2,7 @@ import Foundation
 import UIKit
 
 @MainActor
-final class ScreenshotCache {
+class ScreenshotCache {
     static let shared = ScreenshotCache()
 
     private let cacheDirectory: URL
@@ -30,7 +30,7 @@ final class ScreenshotCache {
         batchScreenshotCount += 1
 
         recentStoreTimestamps.append(now)
-        recentStoreTimestamps.removeAll { now.timeIntervalSince($0) >= 1.0 }
+        recentStoreTimestamps = recentStoreTimestamps.filter { now.timeIntervalSince($0) < 1.0 }
         if recentStoreTimestamps.count > 5 && !diskOnlyMode {
             diskOnlyMode = true
             diskOnlyModeExpiry = now.addingTimeInterval(5)
@@ -69,11 +69,8 @@ final class ScreenshotCache {
 
     func storeData(_ data: Data, forKey key: String) {
         let fileURL = fileURL(for: key)
-        Task.detached(priority: .utility) { [weak self] in
+        Task.detached(priority: .utility) {
             try? data.write(to: fileURL, options: .atomic)
-            await MainActor.run {
-                self?.evictDiskCacheIfNeeded()
-            }
         }
 
         if let image = UIImage(data: data), !diskOnlyMode, !CrashProtectionService.shared.isMemoryCritical {
@@ -114,7 +111,7 @@ final class ScreenshotCache {
         batchScreenshotCount += 1
 
         recentStoreTimestamps.append(now)
-        recentStoreTimestamps.removeAll { now.timeIntervalSince($0) >= 1.0 }
+        recentStoreTimestamps = recentStoreTimestamps.filter { now.timeIntervalSince($0) < 1.0 }
         if recentStoreTimestamps.count > 5 && !diskOnlyMode {
             diskOnlyMode = true
             diskOnlyModeExpiry = now.addingTimeInterval(5)

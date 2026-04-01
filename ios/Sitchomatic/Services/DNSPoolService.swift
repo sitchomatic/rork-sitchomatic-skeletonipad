@@ -2,7 +2,6 @@ import Foundation
 @preconcurrency import Dispatch
 @preconcurrency import Network
 import os
-import Synchronization
 
 nonisolated enum DNSProtocolType: String, Codable, Sendable, CaseIterable {
     case doh = "DoH"
@@ -391,12 +390,14 @@ class DNSPoolService {
         let params = NWParameters(tls: tlsOptions, tcp: tcpOptions)
         let connection = NWConnection(host: host, port: port, using: params)
 
-        let guard_ = ContinuationGuard()
+        let resumed = UnsafeSendableBox(false)
 
         return await withCheckedContinuation { continuation in
             @Sendable func safeResume(_ value: DNSAnswer?) {
-                guard guard_.tryConsume() else { return }
-                continuation.resume(returning: value)
+                if !resumed.value {
+                    resumed.value = true
+                    continuation.resume(returning: value)
+                }
             }
 
             let timeoutItem = DispatchWorkItem { [weak connection] in
@@ -762,30 +763,7 @@ class DNSPoolService {
 
 typealias PPSRDoHService = DNSPoolService
 
-/// Thread-safe mutable box using `Mutex` from the Synchronization framework.
-/// Replaces the `@unchecked Sendable` pattern with proper synchronization.
-///
-/// Use `withLock(_:)` for atomic read-modify-write. Use `value` for snapshots.
-nonisolated final class SendableBox<T: Sendable>: Sendable {
-    private let storage: Mutex<T>
-    init(_ value: T) { storage = Mutex(value) }
-
-    /// Read-only snapshot of the current value.
-    var value: T {
-        storage.withLock { $0 }
-    }
-
-    /// Atomically replace the stored value.
-    func update(_ newValue: T) {
-        storage.withLock { $0 = newValue }
-    }
-
-    /// Atomically access and modify the stored value.
-    @discardableResult
-    func withLock<R>(_ body: (inout T) -> R) -> R {
-        storage.withLock(body)
-    }
+nonisolated final class UnsafeSendableBox<T>: @unchecked Sendable {
+    var value: T
+    init(_ value: T) { self.value = value }
 }
-
-/// Backward-compatible typealias — prefer `SendableBox` for new code.
-typealias UnsafeSendableBox = SendableBox
