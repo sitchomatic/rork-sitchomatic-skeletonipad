@@ -116,6 +116,16 @@ ios/SitchomaticWidget/            # Widget extension
 
 The app uses file-system synchronized groups (`PBXFileSystemSynchronizedRootGroup`), so new Swift files added to the `Sitchomatic/` directory are automatically discovered without editing the project file.
 
+### Build Error Check
+
+To check for build errors without including warnings:
+
+```bash
+./check_build_errors.sh
+```
+
+This script validates all Swift files using `swiftc -parse` and reports only compilation errors (warnings are filtered out). Exit code is 0 if no errors are found, 1 if errors exist.
+
 ### Configuration
 
 - **Grok AI**: Configure API credentials in Settings & Testing → Grok AI Status
