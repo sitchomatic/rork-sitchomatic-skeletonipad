@@ -2328,7 +2328,7 @@ extension LoginWebSession: WKNavigationDelegate {
 
     nonisolated func webView(_ webView: WKWebView,
                               decidePolicyFor navigationAction: WKNavigationAction,
-                              decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
+                              decisionHandler: @MainActor (WKNavigationActionPolicy) -> Void) {
         decisionHandler(.allow)
     }
 
@@ -3066,7 +3066,7 @@ extension BPointWebSession: WKNavigationDelegate {
 
     nonisolated func webView(_ webView: WKWebView,
                               decidePolicyFor navigationAction: WKNavigationAction,
-                              decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
+                              decisionHandler: @MainActor (WKNavigationActionPolicy) -> Void) {
         decisionHandler(.allow)
     }
 }

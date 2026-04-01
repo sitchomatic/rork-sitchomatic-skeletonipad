@@ -410,7 +410,7 @@ public final class HeadlessWebViewWorker: NSObject, WKNavigationDelegate, WKScri
 
     nonisolated public func webView(_ webView: WKWebView,
                                      decidePolicyFor navigationAction: WKNavigationAction,
-                                     decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
+                                     decisionHandler: @MainActor (WKNavigationActionPolicy) -> Void) {
         guard let url = navigationAction.request.url, let host = url.host else {
             decisionHandler(.cancel)
             return
