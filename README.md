@@ -124,7 +124,7 @@ To check for build errors without including warnings:
 ./check_build_errors.sh
 ```
 
-This script validates all Swift files using `swiftc -parse` and reports only compilation errors (warnings are filtered out). Exit code is 0 if no errors are found, 1 if errors exist.
+This script validates all Swift files under `ios/` (app, widget, and tests) using `swiftc -parse` and reports only compilation errors (warnings are filtered out). Exit code is 0 if no errors are found, 1 if errors exist.
 
 ### Configuration
 

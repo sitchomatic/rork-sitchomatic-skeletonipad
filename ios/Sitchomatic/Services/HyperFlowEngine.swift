@@ -1,6 +1,8 @@
+import Foundation
 import SwiftUI
 @preconcurrency import WebKit
 import OSLog
+import Observation
 
 // MARK: - 1. Zero-Copy Data Models & Automation Types
 
