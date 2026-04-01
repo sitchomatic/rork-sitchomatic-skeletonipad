@@ -7,7 +7,7 @@ import ActivityKit
 @Observable
 @MainActor
 final class WidgetBridgeService {
-    static let shared = WidgetBridgeService()
+    @MainActor static let shared = WidgetBridgeService()
 
     // MARK: - State
 
