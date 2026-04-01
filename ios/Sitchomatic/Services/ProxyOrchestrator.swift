@@ -262,7 +262,7 @@ final class ProxyOrchestrator {
 
     func resolveDNS(host: String) async -> String? {
         // Check cache first
-        if let cached = dnsCache[host], cached.expiresAt > Date() {
+        if let cached = dnsCache[host], cached.expiry > Date() {
             logger.log("ProxyOrchestrator: DNS cache HIT for \(host) → \(cached.resolvedIP)", category: .network, level: .debug)
             return cached.resolvedIP
         }
