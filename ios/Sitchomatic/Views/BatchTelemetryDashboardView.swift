@@ -109,8 +109,7 @@ struct BatchTelemetryDashboardView: View {
                 .font(.headline)
                 .foregroundStyle(.primary)
 
-            if #available(iOS 16.0, *) {
-                Chart(telemetry.batchRecords.suffix(20)) { record in
+            Chart(telemetry.batchRecords.suffix(20)) { record in
                     LineMark(
                         x: .value("Batch", record.batchId.prefix(8)),
                         y: .value("Success Rate", record.successRate * 100)
@@ -132,7 +131,6 @@ struct BatchTelemetryDashboardView: View {
                     }
                 }
                 .frame(height: 200)
-            }
         }
         .padding()
         .background(.regularMaterial)
@@ -145,8 +143,7 @@ struct BatchTelemetryDashboardView: View {
                 .font(.headline)
                 .foregroundStyle(.primary)
 
-            if #available(iOS 16.0, *) {
-                Chart(telemetry.batchRecords.suffix(20)) { record in
+            Chart(telemetry.batchRecords.suffix(20)) { record in
                     BarMark(
                         x: .value("Batch", record.batchId.prefix(8)),
                         y: .value("Throughput", record.throughputPerMinute)
@@ -160,7 +157,6 @@ struct BatchTelemetryDashboardView: View {
                     }
                 }
                 .frame(height: 200)
-            }
         }
         .padding()
         .background(.regularMaterial)

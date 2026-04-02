@@ -1,5 +1,4 @@
 import SwiftUI
-import Combine
 
 struct BatchIntelligenceView: View {
     private let preOptimizer = AIPredictiveBatchPreOptimizer.shared

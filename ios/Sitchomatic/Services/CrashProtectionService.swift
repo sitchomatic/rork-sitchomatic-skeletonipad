@@ -1,6 +1,8 @@
 import Foundation
+import Observation
 import UIKit
 
+@Observable
 @MainActor
 final class CrashProtectionService {
     static let shared = CrashProtectionService()

@@ -471,7 +471,8 @@ struct FlowRecorderWebView: UIViewRepresentable {
 
                 if self.parent.isRecording {
                     webView.evaluateJavaScript(FlowRecorderWebView.recorderInjectionJS, completionHandler: nil)
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    Task { @MainActor in
+                        try? await Task.sleep(for: .milliseconds(300))
                         webView.evaluateJavaScript("window.__flowRecorder && window.__flowRecorder.start();", completionHandler: nil)
                     }
                 }
@@ -520,9 +521,11 @@ struct FlowRecorderWebView: UIViewRepresentable {
             let backoff = min(1000 * retryCount, 5000)
             logger.logHealing(category: .webView, originalError: classified.userMessage, healingAction: "Retrying navigation (attempt #\(retryCount), backoff \(backoff)ms)", succeeded: true, attemptNumber: retryCount)
 
-            DispatchQueue.main.asyncAfter(deadline: .now() + Double(backoff) / 1000.0) { [weak self] in
+            let currentRetryCount = retryCount
+            Task { @MainActor [weak self] in
+                try? await Task.sleep(for: .milliseconds(backoff))
                 guard let self, let url = self.parent.url as URL? else { return }
-                self.logger.log("FlowRecorderWebView: retry #\(self.retryCount) loading \(url.absoluteString)", category: .webView, level: .info)
+                self.logger.log("FlowRecorderWebView: retry #\(currentRetryCount) loading \(url.absoluteString)", category: .webView, level: .info)
                 webView.load(URLRequest(url: url))
             }
         }

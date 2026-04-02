@@ -130,36 +130,32 @@ class TunnelDNSResolver {
     }
 
     private func systemDNSResolve(_ hostname: String) async -> UInt32? {
-        return await withCheckedContinuation { continuation in
-            DispatchQueue.global(qos: .userInitiated).async {
-                let host = CFHostCreateWithName(nil, hostname as CFString).takeRetainedValue()
-                var resolved = DarwinBoolean(false)
-                CFHostStartInfoResolution(host, .addresses, nil)
-                guard let addresses = CFHostGetAddressing(host, &resolved)?.takeUnretainedValue() as? [Data],
-                      resolved.boolValue else {
-                    continuation.resume(returning: nil)
-                    return
-                }
-                for addrData in addresses {
-                    if addrData.count >= MemoryLayout<sockaddr_in>.size {
-                        let result: UInt32? = addrData.withUnsafeBytes { ptr in
-                            guard let base = ptr.baseAddress,
-                                  base.assumingMemoryBound(to: sockaddr.self).pointee.sa_family == AF_INET else { return nil }
-                            let raw = base.assumingMemoryBound(to: sockaddr_in.self).pointee.sin_addr.s_addr
-                            let a = UInt32(raw & 0xFF)
-                            let b = UInt32((raw >> 8) & 0xFF)
-                            let c = UInt32((raw >> 16) & 0xFF)
-                            let d = UInt32((raw >> 24) & 0xFF)
-                            return (a << 24) | (b << 16) | (c << 8) | d
-                        }
-                        if let ip = result {
-                            continuation.resume(returning: ip)
-                            return
-                        }
+        return await ConcurrentWork.offload {
+            let host = CFHostCreateWithName(nil, hostname as CFString).takeRetainedValue()
+            var resolved = DarwinBoolean(false)
+            CFHostStartInfoResolution(host, .addresses, nil)
+            guard let addresses = CFHostGetAddressing(host, &resolved)?.takeUnretainedValue() as? [Data],
+                  resolved.boolValue else {
+                return nil as UInt32?
+            }
+            for addrData in addresses {
+                if addrData.count >= MemoryLayout<sockaddr_in>.size {
+                    let result: UInt32? = addrData.withUnsafeBytes { ptr in
+                        guard let base = ptr.baseAddress,
+                              base.assumingMemoryBound(to: sockaddr.self).pointee.sa_family == AF_INET else { return nil }
+                        let raw = base.assumingMemoryBound(to: sockaddr_in.self).pointee.sin_addr.s_addr
+                        let a = UInt32(raw & 0xFF)
+                        let b = UInt32((raw >> 8) & 0xFF)
+                        let c = UInt32((raw >> 16) & 0xFF)
+                        let d = UInt32((raw >> 24) & 0xFF)
+                        return (a << 24) | (b << 16) | (c << 8) | d
+                    }
+                    if let ip = result {
+                        return ip
                     }
                 }
-                continuation.resume(returning: nil)
             }
+            return nil as UInt32?
         }
     }
 

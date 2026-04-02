@@ -1,5 +1,7 @@
 import Foundation
+import Observation
 
+@Observable
 @MainActor
 class BatchTelemetryService {
     static let shared = BatchTelemetryService()
