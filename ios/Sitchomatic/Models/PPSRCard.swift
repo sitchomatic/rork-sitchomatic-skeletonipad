@@ -240,6 +240,25 @@ class PPSRCard: Identifiable {
         return cards
     }
 
+    // Precompiled case-insensitive regex patterns for OCR parsing
+    nonisolated private static let ccnumRegexes: [Regex<AnyRegexOutput>] = [
+        #"(?i)CCNUM[:\s]+(\d{13,19})"#,
+        #"(?i)CC(?:NUM)?[:#]\s*(\d{13,19})"#,
+        #"(?i)Card\s*(?:Number|No|#)?[:\s]+(\d{13,19})"#
+    ].compactMap { try? Regex($0) }
+
+    nonisolated private static let cvvRegexes: [Regex<AnyRegexOutput>] = [
+        #"(?i)CVV[:\s]+(\d{3,4})"#,
+        #"(?i)CVC[:\s]+(\d{3,4})"#,
+        #"(?i)CVV2[:\s]+(\d{3,4})"#
+    ].compactMap { try? Regex($0) }
+
+    nonisolated private static let expRegexes: [Regex<AnyRegexOutput>] = [
+        #"(?i)EXP(?:\s+DATE)?[:\s]+(\d{1,2}[/\-]\d{2,4})"#,
+        #"(?i)Expiry[:\s]+(\d{1,2}[/\-]\d{2,4})"#,
+        #"(?i)Exp[:\s]+(\d{1,2}[/\-]\d{2,4})"#
+    ].compactMap { try? Regex($0) }
+
     private static func splitByCardEmoji(_ input: String) -> [String] {
         let marker = "\u{1F4B3}"
         let parts = input.components(separatedBy: marker)
@@ -257,57 +276,28 @@ class PPSRCard: Identifiable {
         var cvv: String?
         var expDate: String?
 
-        let ccnumPatterns = [
-            "CCNUM[:\\s]+(\\d{13,19})",
-            "CC(?:NUM)?[:#]\\s*(\\d{13,19})",
-            "Card\\s*(?:Number|No|#)?[:\\s]+(\\d{13,19})"
-        ]
-        for pattern in ccnumPatterns {
-            if let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive) {
-                let nsRange = NSRange(combined.startIndex..., in: combined)
-                if let match = regex.firstMatch(in: combined, range: nsRange) {
-                    if match.numberOfRanges > 1, let range = Range(match.range(at: 1), in: combined) {
-                        let digits = String(combined[range])
-                        if digits.count >= 13, digits.count <= 19 {
-                            ccnum = digits
-                            break
-                        }
-                    }
+        // Case-insensitive Swift Regex patterns, precompiled for performance
+        for regex in Self.ccnumRegexes {
+            if let match = combined.firstMatch(of: regex) {
+                let digits = String(match.output.1)
+                if digits.count >= 13, digits.count <= 19 {
+                    ccnum = digits
+                    break
                 }
             }
         }
 
-        let cvvPatterns = [
-            "CVV[:\\s]+(\\d{3,4})",
-            "CVC[:\\s]+(\\d{3,4})",
-            "CVV2[:\\s]+(\\d{3,4})"
-        ]
-        for pattern in cvvPatterns {
-            if let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive) {
-                let nsRange = NSRange(combined.startIndex..., in: combined)
-                if let match = regex.firstMatch(in: combined, range: nsRange) {
-                    if match.numberOfRanges > 1, let range = Range(match.range(at: 1), in: combined) {
-                        cvv = String(combined[range])
-                        break
-                    }
-                }
+        for regex in Self.cvvRegexes {
+            if let match = combined.firstMatch(of: regex) {
+                cvv = String(match.output.1)
+                break
             }
         }
 
-        let expPatterns = [
-            "EXP(?:\\s+DATE)?[:\\s]+(\\d{1,2}[/\\-]\\d{2,4})",
-            "Expiry[:\\s]+(\\d{1,2}[/\\-]\\d{2,4})",
-            "Exp[:\\s]+(\\d{1,2}[/\\-]\\d{2,4})"
-        ]
-        for pattern in expPatterns {
-            if let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive) {
-                let nsRange = NSRange(combined.startIndex..., in: combined)
-                if let match = regex.firstMatch(in: combined, range: nsRange) {
-                    if match.numberOfRanges > 1, let range = Range(match.range(at: 1), in: combined) {
-                        expDate = String(combined[range])
-                        break
-                    }
-                }
+        for regex in Self.expRegexes {
+            if let match = combined.firstMatch(of: regex) {
+                expDate = String(match.output.1)
+                break
             }
         }
 
