@@ -79,7 +79,11 @@ struct LiveBatchDashboardView: View {
         .navigationBarTitleDisplayMode(.large)
         .task {
             while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(1))
+                do {
+                    try await Task.sleep(for: .seconds(1))
+                } catch {
+                    break
+                }
                 refreshTick += 1
                 currentMemoryMB = MemoryMonitor.currentUsageMB()
                 recordThroughputSample()

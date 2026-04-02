@@ -96,7 +96,14 @@ struct DebugLogView: View {
             }
         }
         .onChange(of: logger.changeVersion) { _, _ in
-            refreshTrigger += 1
+            // Throttle: coalesce rapid changes into a single refresh per second
+            let pending = refreshTrigger + 1
+            refreshTrigger = pending
+            Task {
+                try? await Task.sleep(for: .seconds(1))
+                guard !Task.isCancelled, refreshTrigger == pending else { return }
+                refreshTrigger = pending + 1
+            }
         }
     }
 

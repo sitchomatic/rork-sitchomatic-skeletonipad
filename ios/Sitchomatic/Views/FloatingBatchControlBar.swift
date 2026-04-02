@@ -38,7 +38,11 @@ struct FloatingBatchControlBar: View {
             .padding(.bottom, 8)
             .task {
                 while !Task.isCancelled {
-                    try? await Task.sleep(for: .seconds(1))
+                    do {
+                        try await Task.sleep(for: .seconds(1))
+                    } catch {
+                        break
+                    }
                     refreshTick += 1
                 }
             }

@@ -31,7 +31,11 @@ struct RunCommandExpandedView: View {
         .shadow(color: .black.opacity(0.3), radius: 8, y: 4)
         .task {
             while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(1))
+                do {
+                    try await Task.sleep(for: .seconds(1))
+                } catch {
+                    break
+                }
                 timerTick += 1
             }
         }

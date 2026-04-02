@@ -53,7 +53,11 @@ struct SessionMonitorSplitView: View {
         .navigationSplitViewStyle(.balanced)
         .task {
             while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(2))
+                do {
+                    try await Task.sleep(for: .seconds(2))
+                } catch {
+                    break
+                }
                 refreshTick += 1
             }
         }
