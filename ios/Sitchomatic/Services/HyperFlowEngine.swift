@@ -1,4 +1,5 @@
 import SwiftUI
+import Observation
 @preconcurrency import WebKit
 import OSLog
 
