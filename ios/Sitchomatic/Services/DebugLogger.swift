@@ -1,11 +1,13 @@
 import Foundation
+import Observation
 import UIKit
 
+@Observable
 @MainActor
 class DebugLogger {
     static let shared = DebugLogger()
 
-    private(set) var changeCount: Int = 0
+    private(set) var changeVersion: Int = 0
     let persistence = LogPersistenceService()
     private let sessionTracker = LogSessionTracker()
 
@@ -174,7 +176,7 @@ class DebugLogger {
         errorHealingLog.removeAll()
         retryTracker.removeAll()
         cachedErrorCount = 0; cachedWarningCount = 0; cachedCriticalCount = 0
-        changeCount += 1
+        changeVersion += 1
     }
 
     func trimEntries(to count: Int) {
@@ -423,7 +425,7 @@ class DebugLogger {
 
         if batch.contains(where: { $0.level >= .critical }) { schedulePersistCritical() }
         if batch.contains(where: { $0.level >= .error }) { scheduleAutoPersist() }
-        changeCount += 1
+        changeVersion += 1
     }
 
     private func updateCachedCounts(removing evicted: [DebugLogEntry]) {

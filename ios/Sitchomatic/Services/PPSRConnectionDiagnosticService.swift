@@ -179,16 +179,14 @@ class PPSRConnectionDiagnosticService {
         let start = Date()
         let hostName = targetHost
 
-        let result: (addresses: Int, success: Bool) = await withCheckedContinuation { continuation in
-            DispatchQueue.global(qos: .userInitiated).async {
-                let host = CFHostCreateWithName(nil, hostName as CFString).takeRetainedValue()
-                var resolved = DarwinBoolean(false)
-                CFHostStartInfoResolution(host, .addresses, nil)
-                if let addresses = CFHostGetAddressing(host, &resolved)?.takeUnretainedValue() as? [Data], !addresses.isEmpty {
-                    continuation.resume(returning: (addresses.count, true))
-                } else {
-                    continuation.resume(returning: (0, false))
-                }
+        let result: (addresses: Int, success: Bool) = await ConcurrentWork.offload {
+            let host = CFHostCreateWithName(nil, hostName as CFString).takeRetainedValue()
+            var resolved = DarwinBoolean(false)
+            CFHostStartInfoResolution(host, .addresses, nil)
+            if let addresses = CFHostGetAddressing(host, &resolved)?.takeUnretainedValue() as? [Data], !addresses.isEmpty {
+                return (addresses.count, true)
+            } else {
+                return (0, false)
             }
         }
 

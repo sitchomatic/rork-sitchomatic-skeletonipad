@@ -38,7 +38,11 @@ struct RunCommandSheetView: View {
         }
         .task {
             while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(1))
+                do {
+                    try await Task.sleep(for: .seconds(1))
+                } catch {
+                    break
+                }
                 timerTick += 1
             }
         }

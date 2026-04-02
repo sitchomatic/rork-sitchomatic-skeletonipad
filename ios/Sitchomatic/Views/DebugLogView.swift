@@ -95,15 +95,14 @@ struct DebugLogView: View {
                 ShareSheetView(items: [url])
             }
         }
-        .task {
-            var lastSeen = logger.changeCount
-            while !Task.isCancelled {
+        .onChange(of: logger.changeVersion) { _, _ in
+            // Throttle: coalesce rapid changes into a single refresh per second
+            let pending = refreshTrigger + 1
+            refreshTrigger = pending
+            Task {
                 try? await Task.sleep(for: .seconds(1))
-                let current = logger.changeCount
-                if current != lastSeen {
-                    lastSeen = current
-                    refreshTrigger += 1
-                }
+                guard !Task.isCancelled, refreshTrigger == pending else { return }
+                refreshTrigger = pending + 1
             }
         }
     }

@@ -1,4 +1,5 @@
 import Foundation
+import Observation
 
 // MARK: - Import/Export Enums & Structs
 

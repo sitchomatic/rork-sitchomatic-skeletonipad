@@ -1,5 +1,7 @@
 import Foundation
+import Observation
 
+@Observable
 @MainActor
 class ServiceContainer {
     static let shared = ServiceContainer()
@@ -10,10 +12,6 @@ class ServiceContainer {
     let debugLogger: DebugLogger
     let fingerprintValidation: FingerprintValidationService
     let screenshotCache: ScreenshotCache
-
-    let socks5Manager: SOCKS5ProxyManager
-    let jsBuilder: LoginJSBuilder
-    let typingEngine: HumanTypingEngine
 
     init(
         proxyRotation: ProxyRotationService? = nil,
@@ -29,9 +27,5 @@ class ServiceContainer {
         self.debugLogger = debugLogger ?? .shared
         self.fingerprintValidation = fingerprintValidation ?? .shared
         self.screenshotCache = screenshotCache ?? .shared
-
-        self.socks5Manager = SOCKS5ProxyManager()
-        self.jsBuilder = LoginJSBuilder()
-        self.typingEngine = HumanTypingEngine()
     }
 }

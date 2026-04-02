@@ -1,4 +1,5 @@
 import Foundation
+import Observation
 import UIKit
 
 nonisolated struct GovernorSnapshot: Sendable {
@@ -33,6 +34,7 @@ nonisolated struct GovernorStore: Codable, Sendable {
     var hostMemoryProfiles: [String: Double] = [:]
 }
 
+@Observable
 @MainActor
 class AIPredictiveConcurrencyGovernor {
     static let shared = AIPredictiveConcurrencyGovernor()
