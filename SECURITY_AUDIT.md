@@ -218,12 +218,14 @@ final class SecureCredentialStore {
     func savePrivateKey(_ key: String, identifier: String) throws {
         let keyData = key.data(using: .utf8)!
 
-        let accessControl = SecAccessControlCreateWithFlags(
+        guard let accessControl = SecAccessControlCreateWithFlags(
             nil,
             kSecAttrAccessibleWhenUnlockedThisDeviceOnly,
             .userPresence,
             nil
-        )!
+        ) else {
+            throw KeychainError.saveFailed(errSecParam)
+        }
 
         let query: [String: Any] = [
             kSecClass as String: kSecClassKey,

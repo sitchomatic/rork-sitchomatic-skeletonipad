@@ -136,13 +136,16 @@ struct PersistenceActorTests {
     @Test("Invalid JSON encoding fails gracefully")
     func testInvalidEncoding() async {
         let actor = PersistenceActor.shared
+        let key = "invalid-\(UUID().uuidString)"
 
         struct InvalidPayload: Codable {
             let value: Double
         }
 
         do {
-            try await actor.write(InvalidPayload(value: .nan), forKey: "invalid-\(UUID().uuidString)")
+            try await actor.write(InvalidPayload(value: .nan), forKey: key)
+            // Cleanup in case write unexpectedly succeeds
+            await actor.remove(forKey: key)
             Issue.record("Expected write to throw an EncodingError for non-conforming floating-point value")
         } catch {
             #expect(error is EncodingError)
