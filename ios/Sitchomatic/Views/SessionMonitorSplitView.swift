@@ -11,8 +11,6 @@ struct SessionMonitorSplitView: View {
     @State private var refreshTick: Int = 0
     @State private var filterOption: SessionFilterOption = .all
 
-    private let refreshTimer = Timer.publish(every: 2, on: .main, in: .common).autoconnect()
-
     nonisolated enum SessionFilterOption: String, CaseIterable, Sendable {
         case all = "All"
         case active = "Active"
@@ -53,8 +51,11 @@ struct SessionMonitorSplitView: View {
             }
         }
         .navigationSplitViewStyle(.balanced)
-        .onReceive(refreshTimer) { _ in
-            refreshTick += 1
+        .task {
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(2))
+                refreshTick += 1
+            }
         }
     }
 

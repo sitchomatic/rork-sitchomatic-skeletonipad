@@ -275,7 +275,11 @@ class PPSRConnectionDiagnosticService {
         let session = URLSession(configuration: config)
         defer { session.invalidateAndCancel() }
 
-        var request = URLRequest(url: URL(string: "https://\(targetHost)")!)
+        guard let url = URL(string: "https://\(targetHost)") else {
+            let latency = Int(Date().timeIntervalSince(start) * 1000)
+            return DiagnosticStep(name: "SSL/TLS Certificate", status: .failed, detail: "Invalid URL for host: \(targetHost)", latencyMs: latency)
+        }
+        var request = URLRequest(url: url)
         request.httpMethod = "HEAD"
         request.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData
 

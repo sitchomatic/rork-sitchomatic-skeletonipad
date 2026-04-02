@@ -10,8 +10,6 @@ struct FloatingBatchControlBar: View {
     @State private var isExpanded: Bool = true
     @State private var concurrencyValue: Double = 4
 
-    private let refreshTimer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
-
     private var isAnyRunning: Bool {
         loginVM.isRunning || ppsrVM.isRunning || unifiedVM.isRunning
     }
@@ -38,8 +36,11 @@ struct FloatingBatchControlBar: View {
             .animation(.spring(duration: 0.35, bounce: 0.15), value: isExpanded)
             .padding(.horizontal, 12)
             .padding(.bottom, 8)
-            .onReceive(refreshTimer) { _ in
-                refreshTick += 1
+            .task {
+                while !Task.isCancelled {
+                    try? await Task.sleep(for: .seconds(1))
+                    refreshTick += 1
+                }
             }
             .onAppear {
                 concurrencyValue = Double(engine.livePairCount)

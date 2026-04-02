@@ -1,11 +1,8 @@
 import SwiftUI
-import Combine
 
 struct RunCommandExpandedView: View {
     @State private var vm = RunCommandViewModel.shared
     @State private var timerTick: Int = 0
-
-    private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -32,7 +29,12 @@ struct RunCommandExpandedView: View {
                 .strokeBorder(vm.siteColor.opacity(0.2), lineWidth: 0.5)
         )
         .shadow(color: .black.opacity(0.3), radius: 8, y: 4)
-        .onReceive(timer) { _ in timerTick += 1 }
+        .task {
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(1))
+                timerTick += 1
+            }
+        }
     }
 
     private var headerRow: some View {
