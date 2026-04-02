@@ -4,8 +4,6 @@ struct RunCommandSheetView: View {
     @State private var vm = RunCommandViewModel.shared
     @State private var timerTick: Int = 0
 
-    private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
-
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -38,7 +36,12 @@ struct RunCommandSheetView: View {
                 }
             }
         }
-        .onReceive(timer) { _ in timerTick += 1 }
+        .task {
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(1))
+                timerTick += 1
+            }
+        }
     }
 
     private var batchHeader: some View {
