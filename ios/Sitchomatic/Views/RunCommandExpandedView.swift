@@ -1,5 +1,4 @@
 import SwiftUI
-import Combine
 
 struct RunCommandExpandedView: View {
     @State private var vm = RunCommandViewModel.shared

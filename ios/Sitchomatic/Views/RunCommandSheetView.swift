@@ -1,5 +1,4 @@
 import SwiftUI
-import Combine
 
 struct RunCommandSheetView: View {
     @State private var vm = RunCommandViewModel.shared

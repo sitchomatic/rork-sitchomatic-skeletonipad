@@ -1,5 +1,4 @@
 import SwiftUI
-import Combine
 import UIKit
 
 struct DebugLogView: View {
@@ -96,7 +95,7 @@ struct DebugLogView: View {
                 ShareSheetView(items: [url])
             }
         }
-        .onReceive(logger.didChange.throttle(for: .seconds(1), scheduler: DispatchQueue.main, latest: true)) { _ in
+        .onChange(of: logger.changeVersion) { _, _ in
             refreshTrigger += 1
         }
     }
