@@ -1,6 +1,8 @@
 import Foundation
+import Observation
 import UIKit
 
+@Observable
 @MainActor
 final class AppStabilityCoordinator {
     static let shared = AppStabilityCoordinator()
