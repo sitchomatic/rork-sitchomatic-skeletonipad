@@ -1206,7 +1206,8 @@ class SuperTestService {
         defer { session.invalidateAndCancel() }
 
         guard let url = URL(string: "https://\(host)") else {
-            return (false, 0, "Invalid URL for host: \(host)")
+            let latency = Int(Date().timeIntervalSince(start) * 1000)
+            return (false, latency, "Invalid URL for host: \(host)")
         }
         var request = URLRequest(url: url)
         request.httpMethod = "HEAD"
