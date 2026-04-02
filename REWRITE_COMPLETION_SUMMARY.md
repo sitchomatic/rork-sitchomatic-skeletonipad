@@ -68,7 +68,7 @@ The codebase now leverages Swift 6.2 features:
 - ✅ **Strict Concurrency**: Actor isolation with region-based isolation
 - ✅ **@Observable Macro**: Modern state management
 - ✅ **@MainActor**: Default actor isolation (SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor)
-- ✅ **nonisolated(unsafe)**: Correct singleton access patterns
+- ✅ **Main-actor singletons**: Singleton access via `@MainActor` + `static let shared` pattern (no `nonisolated(unsafe)` usage)
 - ✅ **Sendable Conformance**: All concurrent types properly marked
 - ✅ **Structured Concurrency**: Task naming, async defer, proper cancellation
 
