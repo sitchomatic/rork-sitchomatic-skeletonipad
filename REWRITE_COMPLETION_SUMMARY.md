@@ -26,15 +26,14 @@ Successfully completed a comprehensive rewrite of the Sitchomatic iOS applicatio
 ### Commented Code Removed
 3. **PerformanceInstrumentation.swift**
    - Removed 60+ lines of commented-out documentation
-   - Removed usage examples extension (lines 194-220)
+   - Removed usage examples extension from the `PerformanceInstrumentation` implementation
    - **Impact**: Cleaner, more maintainable code
 
 ### Build Compatibility Fixes
 4. **Regex Literal Syntax**
    - Fixed regex literal `/pattern/` → `Regex(#"pattern"#)` syntax
    - **Reason**: Swift regex literals cause parse errors on Linux Swift 6.2.4
-   - **Location**: UnifiedImportExportService.swift:285
-   - **Pattern**: Using raw string literals with guard clause for error handling
+   - **Location**: In `UnifiedImportExportService.swift`
 
 ## Architecture Analysis
 
