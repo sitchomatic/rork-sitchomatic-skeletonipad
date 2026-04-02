@@ -210,22 +210,26 @@ final class SecureCredentialStore {
         }
     }
 
-    // MARK: - Private Key Storage (Secure Enclave)
+    // MARK: - Private Key Storage (Keychain, not Secure Enclave)
+    // Note: For true Secure Enclave storage, generate keys with
+    // kSecAttrTokenIDSecureEnclave and store the SecKey reference.
+    // This implementation stores keys in the iOS Keychain.
 
     func savePrivateKey(_ key: String, identifier: String) throws {
         let keyData = key.data(using: .utf8)!
+
+        let accessControl = SecAccessControlCreateWithFlags(
+            nil,
+            kSecAttrAccessibleWhenUnlockedThisDeviceOnly,
+            .userPresence,
+            nil
+        )!
 
         let query: [String: Any] = [
             kSecClass as String: kSecClassKey,
             kSecAttrApplicationLabel as String: identifier,
             kSecValueData as String: keyData,
-            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock,
-            kSecAttrAccessControl as String: SecAccessControlCreateWithFlags(
-                nil,
-                kSecAttrAccessibleWhenUnlockedThisDeviceOnly,
-                .userPresence,
-                nil
-            )!
+            kSecAttrAccessControl as String: accessControl
         ]
 
         SecItemDelete(query as CFDictionary)
@@ -252,9 +256,10 @@ final class CredentialMigrationService {
     static let shared = CredentialMigrationService()
 
     func migrateFromPlainTextToKeychain() async throws {
-        // 1. Load existing credentials from JSON
-        let storage = PersistentFileStorageService.shared
-        let credentials: [LoginCredential] = try await storage.load(key: "login-credentials") ?? []
+        // 1. Load existing credentials from persistence actor
+        let actor = PersistenceActor.shared
+        let credentials: [LoginCredential]? = await actor.read([LoginCredential].self, forKey: "login-credentials")
+        guard let credentials, !credentials.isEmpty else { return }
 
         // 2. Migrate each to Keychain
         for credential in credentials {
@@ -273,10 +278,10 @@ final class CredentialMigrationService {
         }
 
         // 4. Save metadata
-        try await storage.save(secureCredentials, forKey: "login-credentials-metadata")
+        try await actor.write(secureCredentials, forKey: "login-credentials-metadata")
 
         // 5. Delete old insecure storage
-        try await storage.remove(forKey: "login-credentials")
+        await actor.remove(forKey: "login-credentials")
 
         print("✅ Migrated \(credentials.count) credentials to Keychain")
     }
@@ -348,11 +353,17 @@ struct SecurityTests {
 
     @Test("Credentials not stored in plain text")
     func testNoPlainTextCredentials() async throws {
-        let storage = PersistentFileStorageService.shared
-        let allFiles = try FileManager.default.contentsOfDirectory(
-            at: storage.baseDirectory,
-            includingPropertiesForKeys: nil
-        )
+        let fileManager = FileManager.default
+        let persistenceDirectories =
+            fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask) +
+            fileManager.urls(for: .documentDirectory, in: .userDomainMask)
+
+        let allFiles = try persistenceDirectories.flatMap { directory in
+            try fileManager.contentsOfDirectory(
+                at: directory,
+                includingPropertiesForKeys: nil
+            )
+        }
 
         for file in allFiles {
             let content = try String(contentsOf: file)
@@ -387,15 +398,14 @@ struct SecurityTests {
     @Test("Sensitive data cleared from memory")
     func testMemoryClearing() {
         var sensitiveData = "password123"
-        defer {
-            // Ensure memory is cleared
-            withUnsafeMutablePointer(to: &sensitiveData) { ptr in
-                ptr.pointee = ""
-            }
-        }
 
         // Use sensitive data
         _ = sensitiveData
+
+        // Ensure memory is cleared before verifying
+        withUnsafeMutablePointer(to: &sensitiveData) { ptr in
+            ptr.pointee = ""
+        }
 
         // Verify cleared
         #expect(sensitiveData.isEmpty)

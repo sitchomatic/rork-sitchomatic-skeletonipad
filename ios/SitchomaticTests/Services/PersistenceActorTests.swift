@@ -10,20 +10,23 @@ struct PersistenceActorTests {
 
     @Test("Write and read data")
     func testWriteAndRead() async throws {
-        let actor = PersistenceActor(baseDirectory: FileManager.default.temporaryDirectory)
+        let actor = PersistenceActor.shared
 
         let testData = ["key": "value", "number": "123"]
-        try await actor.save(testData, forKey: "test-key")
+        try await actor.write(testData, forKey: "test-key")
 
-        let retrieved: [String: String]? = try await actor.load(forKey: "test-key")
+        let retrieved = await actor.read([String: String].self, forKey: "test-key")
         #expect(retrieved?["key"] == "value")
         #expect(retrieved?["number"] == "123")
+
+        // Cleanup
+        await actor.remove(forKey: "test-key")
     }
 
     @Test("Read non-existent key returns nil")
-    func testReadNonExistent() async throws {
-        let actor = PersistenceActor(baseDirectory: FileManager.default.temporaryDirectory)
-        let result: [String: String]? = try await actor.load(forKey: "non-existent")
+    func testReadNonExistent() async {
+        let actor = PersistenceActor.shared
+        let result = await actor.read([String: String].self, forKey: "non-existent-\(UUID().uuidString)")
         #expect(result == nil)
     }
 
@@ -31,34 +34,41 @@ struct PersistenceActorTests {
 
     @Test("Concurrent writes don't corrupt data")
     func testConcurrentWrites() async throws {
-        let actor = PersistenceActor(baseDirectory: FileManager.default.temporaryDirectory)
+        let actor = PersistenceActor.shared
+        let prefix = "concurrent-test-\(UUID().uuidString)"
 
         await withTaskGroup(of: Void.self) { group in
             for i in 0..<100 {
                 group.addTask {
-                    try? await actor.save(["value": "\(i)"], forKey: "concurrent-test-\(i)")
+                    try? await actor.write(["value": "\(i)"], forKey: "\(prefix)-\(i)")
                 }
             }
         }
 
         // Verify all writes succeeded
         for i in 0..<100 {
-            let result: [String: String]? = try await actor.load(forKey: "concurrent-test-\(i)")
+            let result = await actor.read([String: String].self, forKey: "\(prefix)-\(i)")
             #expect(result?["value"] == "\(i)")
+        }
+
+        // Cleanup
+        for i in 0..<100 {
+            await actor.remove(forKey: "\(prefix)-\(i)")
         }
     }
 
     @Test("Concurrent reads of same key")
     func testConcurrentReads() async throws {
-        let actor = PersistenceActor(baseDirectory: FileManager.default.temporaryDirectory)
+        let actor = PersistenceActor.shared
+        let key = "concurrent-read-test-\(UUID().uuidString)"
 
         let testData = ["key": "value"]
-        try await actor.save(testData, forKey: "concurrent-read-test")
+        try await actor.write(testData, forKey: key)
 
         await withTaskGroup(of: Bool.self) { group in
             for _ in 0..<100 {
                 group.addTask {
-                    if let result: [String: String] = try? await actor.load(forKey: "concurrent-read-test") {
+                    if let result = await actor.read([String: String].self, forKey: key) {
                         return result["key"] == "value"
                     }
                     return false
@@ -73,89 +83,107 @@ struct PersistenceActorTests {
             }
             #expect(successCount == 100)
         }
+
+        // Cleanup
+        await actor.remove(forKey: key)
     }
 
     // MARK: - Coalesced Writes
 
     @Test("Rapid writes are coalesced")
     func testWriteCoalescing() async throws {
-        let actor = PersistenceActor(baseDirectory: FileManager.default.temporaryDirectory)
+        let actor = PersistenceActor.shared
+        let key = "coalesce-test-\(UUID().uuidString)"
 
         // Perform many rapid writes
         for i in 0..<50 {
-            try await actor.save(["counter": "\(i)"], forKey: "coalesce-test")
+            try await actor.write(["counter": "\(i)"], forKey: key)
         }
 
         // Wait for coalescing window
         try await Task.sleep(for: .milliseconds(600))
 
         // Force save to ensure pending writes are flushed
-        try await actor.forceSave()
+        await actor.forceSave()
 
         // Verify final value
-        let result: [String: String]? = try await actor.load(forKey: "coalesce-test")
+        let result = await actor.read([String: String].self, forKey: key)
         #expect(result?["counter"] == "49")
+
+        // Cleanup
+        await actor.remove(forKey: key)
     }
 
     // MARK: - Force Save
 
     @Test("Force save flushes pending writes")
     func testForceSave() async throws {
-        let actor = PersistenceActor(baseDirectory: FileManager.default.temporaryDirectory)
+        let actor = PersistenceActor.shared
+        let key = "force-save-test-\(UUID().uuidString)"
 
-        try await actor.save(["status": "pending"], forKey: "force-save-test")
-        try await actor.forceSave()
+        try await actor.write(["status": "pending"], forKey: key)
+        await actor.forceSave()
 
-        let result: [String: String]? = try await actor.load(forKey: "force-save-test")
+        let result = await actor.read([String: String].self, forKey: key)
         #expect(result?["status"] == "pending")
+
+        // Cleanup
+        await actor.remove(forKey: key)
     }
 
     // MARK: - Error Handling
 
     @Test("Invalid JSON encoding fails gracefully")
     func testInvalidEncoding() async {
-        let actor = PersistenceActor(baseDirectory: FileManager.default.temporaryDirectory)
+        let actor = PersistenceActor.shared
 
-        // Attempt to save non-Codable type
-        struct NonCodable {
-            let value: Int
+        struct InvalidPayload: Codable {
+            let value: Double
         }
 
-        // This should fail at compile time, but if we force it:
-        // let result = try? await actor.save(NonCodable(value: 42), forKey: "invalid")
-        // #expect(result == nil)
+        do {
+            try await actor.write(InvalidPayload(value: .nan), forKey: "invalid-\(UUID().uuidString)")
+            Issue.record("Expected write to throw an EncodingError for non-conforming floating-point value")
+        } catch {
+            #expect(error is EncodingError)
+        }
     }
 
     // MARK: - Memory Safety
 
     @Test("Large data doesn't cause memory issues")
     func testLargeData() async throws {
-        let actor = PersistenceActor(baseDirectory: FileManager.default.temporaryDirectory)
+        let actor = PersistenceActor.shared
+        let key = "large-data-test-\(UUID().uuidString)"
 
         let largeArray = Array(repeating: "test string", count: 10000)
-        try await actor.save(largeArray, forKey: "large-data-test")
+        try await actor.write(largeArray, forKey: key)
 
-        let result: [String]? = try await actor.load(forKey: "large-data-test")
+        let result = await actor.read([String].self, forKey: key)
         #expect(result?.count == 10000)
+
+        // Cleanup
+        await actor.remove(forKey: key)
     }
 
     // MARK: - Cleanup
 
     @Test("Remove data works correctly")
     func testRemoveData() async throws {
-        let actor = PersistenceActor(baseDirectory: FileManager.default.temporaryDirectory)
+        let actor = PersistenceActor.shared
+        let key = "remove-test-\(UUID().uuidString)"
 
-        try await actor.save(["key": "value"], forKey: "remove-test")
+        try await actor.write(["key": "value"], forKey: key)
 
         // Verify it exists
-        let before: [String: String]? = try await actor.load(forKey: "remove-test")
+        let before = await actor.read([String: String].self, forKey: key)
         #expect(before != nil)
 
         // Remove it
-        try await actor.remove(forKey: "remove-test")
+        await actor.remove(forKey: key)
 
         // Verify it's gone
-        let after: [String: String]? = try await actor.load(forKey: "remove-test")
+        let after = await actor.read([String: String].self, forKey: key)
         #expect(after == nil)
     }
 }

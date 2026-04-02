@@ -42,8 +42,8 @@ This report provides a comprehensive analysis of the Sitchomatic iOS codebase (3
 | **Models** | 46 files |
 | **Actors** | 19+ identified |
 | **Singletons** | 123+ with `static let shared` |
-| **Test Files** | 3 (empty templates) |
-| **Test Coverage** | <1% |
+| **Test Files** | 5 (3 original templates + 2 new suites) |
+| **Test Coverage** | ~3% (baseline established) |
 
 ---
 
@@ -254,7 +254,7 @@ See [SECURITY_AUDIT.md](SECURITY_AUDIT.md) for full details.
 
 ### Target: 80 Concurrent WebViews (40 pairs)
 
-**Device**: iPad Pro M5 13" (not yet released - use M4 for testing)
+**Device**: iPad Pro M4 13"
 
 **Concerns**:
 1. **Memory**: ~80MB per WebView = 6.4GB total (exceeds likely budget)

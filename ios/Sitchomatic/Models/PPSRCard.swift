@@ -240,6 +240,25 @@ class PPSRCard: Identifiable {
         return cards
     }
 
+    // Precompiled case-insensitive regex patterns for OCR parsing
+    nonisolated private static let ccnumRegexes: [Regex<AnyRegexOutput>] = [
+        #"(?i)CCNUM[:\s]+(\d{13,19})"#,
+        #"(?i)CC(?:NUM)?[:#]\s*(\d{13,19})"#,
+        #"(?i)Card\s*(?:Number|No|#)?[:\s]+(\d{13,19})"#
+    ].compactMap { try? Regex($0) }
+
+    nonisolated private static let cvvRegexes: [Regex<AnyRegexOutput>] = [
+        #"(?i)CVV[:\s]+(\d{3,4})"#,
+        #"(?i)CVC[:\s]+(\d{3,4})"#,
+        #"(?i)CVV2[:\s]+(\d{3,4})"#
+    ].compactMap { try? Regex($0) }
+
+    nonisolated private static let expRegexes: [Regex<AnyRegexOutput>] = [
+        #"(?i)EXP(?:\s+DATE)?[:\s]+(\d{1,2}[/\-]\d{2,4})"#,
+        #"(?i)Expiry[:\s]+(\d{1,2}[/\-]\d{2,4})"#,
+        #"(?i)Exp[:\s]+(\d{1,2}[/\-]\d{2,4})"#
+    ].compactMap { try? Regex($0) }
+
     private static func splitByCardEmoji(_ input: String) -> [String] {
         let marker = "\u{1F4B3}"
         let parts = input.components(separatedBy: marker)
@@ -257,14 +276,8 @@ class PPSRCard: Identifiable {
         var cvv: String?
         var expDate: String?
 
-        // Swift Regex migration for cross-platform compatibility
-        let ccnumPatterns = [
-            #"CCNUM[:\s]+(\d{13,19})"#,
-            #"CC(?:NUM)?[:#]\s*(\d{13,19})"#,
-            #"Card\s*(?:Number|No|#)?[:\s]+(\d{13,19})"#
-        ]
-        for patternString in ccnumPatterns {
-            guard let regex = try? Regex(patternString) else { continue }
+        // Case-insensitive Swift Regex patterns, precompiled for performance
+        for regex in Self.ccnumRegexes {
             if let match = combined.firstMatch(of: regex) {
                 let digits = String(match.output.1)
                 if digits.count >= 13, digits.count <= 19 {
@@ -274,26 +287,14 @@ class PPSRCard: Identifiable {
             }
         }
 
-        let cvvPatterns = [
-            #"CVV[:\s]+(\d{3,4})"#,
-            #"CVC[:\s]+(\d{3,4})"#,
-            #"CVV2[:\s]+(\d{3,4})"#
-        ]
-        for patternString in cvvPatterns {
-            guard let regex = try? Regex(patternString) else { continue }
+        for regex in Self.cvvRegexes {
             if let match = combined.firstMatch(of: regex) {
                 cvv = String(match.output.1)
                 break
             }
         }
 
-        let expPatterns = [
-            #"EXP(?:\s+DATE)?[:\s]+(\d{1,2}[/\-]\d{2,4})"#,
-            #"Expiry[:\s]+(\d{1,2}[/\-]\d{2,4})"#,
-            #"Exp[:\s]+(\d{1,2}[/\-]\d{2,4})"#
-        ]
-        for patternString in expPatterns {
-            guard let regex = try? Regex(patternString) else { continue }
+        for regex in Self.expRegexes {
             if let match = combined.firstMatch(of: regex) {
                 expDate = String(match.output.1)
                 break

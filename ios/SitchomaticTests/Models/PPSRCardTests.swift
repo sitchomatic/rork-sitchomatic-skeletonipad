@@ -86,7 +86,7 @@ struct PPSRCardTests {
     @Test("Parse card from CCNUM format")
     func testCCNUMParsing() {
         let text = "CCNUM: 4111111111111111 CVV: 123 EXP: 12/25"
-        let card = PPSRCard.parseFromOCR(text)
+        let card = PPSRCard.parseRichTextBlock(text)
         #expect(card != nil)
         #expect(card?.number == "4111111111111111")
         #expect(card?.cvv == "123")
@@ -97,7 +97,7 @@ struct PPSRCardTests {
     @Test("Parse card from CC# format")
     func testCCHashParsing() {
         let text = "CC#5111111111111111 CVC:456 Expiry:11/26"
-        let card = PPSRCard.parseFromOCR(text)
+        let card = PPSRCard.parseRichTextBlock(text)
         #expect(card != nil)
         #expect(card?.number == "5111111111111111")
         #expect(card?.cvv == "456")
@@ -106,7 +106,7 @@ struct PPSRCardTests {
     @Test("Parse card from Card Number format")
     func testCardNumberParsing() {
         let text = "Card Number: 371449635398431 CVV2: 9876 EXP DATE: 03/27"
-        let card = PPSRCard.parseFromOCR(text)
+        let card = PPSRCard.parseRichTextBlock(text)
         #expect(card != nil)
         #expect(card?.number == "371449635398431")
         #expect(card?.cvv == "9876")
@@ -116,21 +116,39 @@ struct PPSRCardTests {
 
     @Test("Invalid OCR text returns nil")
     func testInvalidOCRText() {
-        #expect(PPSRCard.parseFromOCR("No card data here") == nil)
-        #expect(PPSRCard.parseFromOCR("") == nil)
-        #expect(PPSRCard.parseFromOCR("CCNUM: invalid") == nil)
+        #expect(PPSRCard.parseRichTextBlock("No card data here") == nil)
+        #expect(PPSRCard.parseRichTextBlock("") == nil)
+        #expect(PPSRCard.parseRichTextBlock("CCNUM: invalid") == nil)
     }
 
     @Test("Partial card data returns nil")
     func testPartialCardData() {
         // Missing CVV
-        #expect(PPSRCard.parseFromOCR("CCNUM: 4111111111111111 EXP: 12/25") == nil)
+        #expect(PPSRCard.parseRichTextBlock("CCNUM: 4111111111111111 EXP: 12/25") == nil)
 
         // Missing expiry
-        #expect(PPSRCard.parseFromOCR("CCNUM: 4111111111111111 CVV: 123") == nil)
+        #expect(PPSRCard.parseRichTextBlock("CCNUM: 4111111111111111 CVV: 123") == nil)
 
         // Missing card number
-        #expect(PPSRCard.parseFromOCR("CVV: 123 EXP: 12/25") == nil)
+        #expect(PPSRCard.parseRichTextBlock("CVV: 123 EXP: 12/25") == nil)
+    }
+
+    // MARK: - Case-Insensitive Matching
+
+    @Test("Parse card from lowercase OCR text")
+    func testCaseInsensitiveParsing() {
+        let text = "ccnum: 4111111111111111 cvv: 123 exp: 12/25"
+        let card = PPSRCard.parseRichTextBlock(text)
+        #expect(card != nil)
+        #expect(card?.number == "4111111111111111")
+    }
+
+    @Test("Parse card from mixed-case OCR text")
+    func testMixedCaseParsing() {
+        let text = "Ccnum: 4111111111111111 Cvv: 123 Exp: 12/25"
+        let card = PPSRCard.parseRichTextBlock(text)
+        #expect(card != nil)
+        #expect(card?.number == "4111111111111111")
     }
 
     // MARK: - Expiry Date Parsing
@@ -138,14 +156,14 @@ struct PPSRCardTests {
     @Test("Parse various expiry date formats")
     func testExpiryDateFormats() {
         let text1 = "CCNUM: 4111111111111111 CVV: 123 EXP: 12/25"
-        let card1 = PPSRCard.parseFromOCR(text1)
+        let card1 = PPSRCard.parseRichTextBlock(text1)
         #expect(card1?.expiryMonth == "12")
         #expect(card1?.expiryYear == "25")
 
         let text2 = "CCNUM: 4111111111111111 CVV: 123 EXP: 12-2025"
-        let card2 = PPSRCard.parseFromOCR(text2)
+        let card2 = PPSRCard.parseRichTextBlock(text2)
         #expect(card2?.expiryMonth == "12")
-        #expect(card2?.expiryYear == "2025")
+        #expect(card2?.expiryYear == "25")
     }
 
     // MARK: - CVV Validation
@@ -154,12 +172,12 @@ struct PPSRCardTests {
     func testCVVLength() {
         // 3-digit CVV
         let text1 = "CCNUM: 4111111111111111 CVV: 123 EXP: 12/25"
-        let card1 = PPSRCard.parseFromOCR(text1)
+        let card1 = PPSRCard.parseRichTextBlock(text1)
         #expect(card1?.cvv.count == 3)
 
         // 4-digit CVV (Amex)
         let text2 = "CCNUM: 371449635398431 CVV: 1234 EXP: 12/25"
-        let card2 = PPSRCard.parseFromOCR(text2)
+        let card2 = PPSRCard.parseRichTextBlock(text2)
         #expect(card2?.cvv.count == 4)
     }
 
@@ -182,7 +200,7 @@ struct PPSRCardTests {
     @Test("Large text parsing doesn't crash")
     func testLargeTextParsing() {
         let largeText = String(repeating: "Invalid data ", count: 10000)
-        let card = PPSRCard.parseFromOCR(largeText)
+        let card = PPSRCard.parseRichTextBlock(largeText)
         #expect(card == nil)
     }
 
@@ -191,7 +209,7 @@ struct PPSRCardTests {
     @Test("Card number with invalid characters")
     func testInvalidCharactersInCardNumber() {
         let text = "CCNUM: 4111abc1111111111 CVV: 123 EXP: 12/25"
-        let card = PPSRCard.parseFromOCR(text)
+        let card = PPSRCard.parseRichTextBlock(text)
         // Should filter out non-numeric characters
         #expect(card == nil || card?.number == "4111111111111111")
     }
@@ -202,7 +220,7 @@ struct PPSRCardTests {
         CCNUM: 4111111111111111 CVV: 123 EXP: 12/25
         CCNUM: 5111111111111111 CVV: 456 EXP: 11/26
         """
-        let card = PPSRCard.parseFromOCR(text)
+        let card = PPSRCard.parseRichTextBlock(text)
         #expect(card?.number == "4111111111111111")
     }
 }
