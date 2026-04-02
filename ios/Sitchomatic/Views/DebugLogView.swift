@@ -1,5 +1,4 @@
 import SwiftUI
-import Combine
 import UIKit
 
 struct DebugLogView: View {
@@ -96,8 +95,15 @@ struct DebugLogView: View {
                 ShareSheetView(items: [url])
             }
         }
-        .onReceive(logger.didChange.throttle(for: .seconds(1), scheduler: DispatchQueue.main, latest: true)) { _ in
-            refreshTrigger += 1
+        .onChange(of: logger.changeVersion) { _, _ in
+            // Throttle: coalesce rapid changes into a single refresh per second
+            let pending = refreshTrigger + 1
+            refreshTrigger = pending
+            Task {
+                try? await Task.sleep(for: .seconds(1))
+                guard !Task.isCancelled, refreshTrigger == pending else { return }
+                refreshTrigger = pending + 1
+            }
         }
     }
 

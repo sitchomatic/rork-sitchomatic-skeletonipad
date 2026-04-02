@@ -61,7 +61,6 @@ struct LiveBatchDashboardView: View {
 
     private let maxPairs: Int = 40
     private let maxWebViews: Int = 80
-    private let refreshTimer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     var body: some View {
         ScrollView {
@@ -78,10 +77,17 @@ struct LiveBatchDashboardView: View {
         .background(Color(.systemGroupedBackground))
         .navigationTitle("Live Dashboard")
         .navigationBarTitleDisplayMode(.large)
-        .onReceive(refreshTimer) { _ in
-            refreshTick += 1
-            currentMemoryMB = MemoryMonitor.currentUsageMB()
-            recordThroughputSample()
+        .task {
+            while !Task.isCancelled {
+                do {
+                    try await Task.sleep(for: .seconds(1))
+                } catch {
+                    break
+                }
+                refreshTick += 1
+                currentMemoryMB = MemoryMonitor.currentUsageMB()
+                recordThroughputSample()
+            }
         }
         .onAppear {
             currentMemoryMB = MemoryMonitor.currentUsageMB()

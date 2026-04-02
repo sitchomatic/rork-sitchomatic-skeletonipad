@@ -1,11 +1,8 @@
 import SwiftUI
-import Combine
 
 struct RunCommandSheetView: View {
     @State private var vm = RunCommandViewModel.shared
     @State private var timerTick: Int = 0
-
-    private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     var body: some View {
         NavigationStack {
@@ -39,7 +36,16 @@ struct RunCommandSheetView: View {
                 }
             }
         }
-        .onReceive(timer) { _ in timerTick += 1 }
+        .task {
+            while !Task.isCancelled {
+                do {
+                    try await Task.sleep(for: .seconds(1))
+                } catch {
+                    break
+                }
+                timerTick += 1
+            }
+        }
     }
 
     private var batchHeader: some View {

@@ -1,5 +1,7 @@
 import Foundation
+import Observation
 
+@Observable
 @MainActor
 class ExportHistoryService {
     static let shared = ExportHistoryService()
