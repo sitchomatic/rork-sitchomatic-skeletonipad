@@ -1,4 +1,5 @@
 import SwiftUI
+import Observation
 
 nonisolated enum NordLynxGenerationState: Sendable, Equatable {
     case idle
