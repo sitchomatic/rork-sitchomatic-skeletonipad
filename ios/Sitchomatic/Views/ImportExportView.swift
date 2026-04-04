@@ -457,7 +457,7 @@ struct ImportExportView: View {
 
         triggerHaptic(.success)
         showStatus("Export ready for sharing", isError: false)
-        logger.log("Exported \(currentDataCount) \(selectedDataType.rawValue.lowercased()) as \(selectedExportFormat.rawValue)", category: .general, level: .info, detail: nil, sessionId: nil, durationMs: nil, metadata: nil)
+        logger.log("Exported \(currentDataCount) \(selectedDataType.rawValue.lowercased()) as \(selectedExportFormat.rawValue)", category: .system, level: .info, detail: nil, sessionId: nil, durationMs: nil, metadata: nil)
     }
 
     private func showStatus(_ message: String, isError: Bool) {

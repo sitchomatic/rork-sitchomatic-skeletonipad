@@ -241,19 +241,19 @@ class PPSRCard: Identifiable {
     }
 
     // Precompiled case-insensitive regex patterns for OCR parsing
-    nonisolated private static let ccnumRegexes: [Regex<AnyRegexOutput>] = [
+    private static let ccnumRegexes: [Regex<AnyRegexOutput>] = [
         #"(?i)CCNUM[:\s]+(\d{13,19})"#,
         #"(?i)CC(?:NUM)?[:#]\s*(\d{13,19})"#,
         #"(?i)Card\s*(?:Number|No|#)?[:\s]+(\d{13,19})"#
     ].compactMap { try? Regex($0) }
 
-    nonisolated private static let cvvRegexes: [Regex<AnyRegexOutput>] = [
+    private static let cvvRegexes: [Regex<AnyRegexOutput>] = [
         #"(?i)CVV[:\s]+(\d{3,4})"#,
         #"(?i)CVC[:\s]+(\d{3,4})"#,
         #"(?i)CVV2[:\s]+(\d{3,4})"#
     ].compactMap { try? Regex($0) }
 
-    nonisolated private static let expRegexes: [Regex<AnyRegexOutput>] = [
+    private static let expRegexes: [Regex<AnyRegexOutput>] = [
         #"(?i)EXP(?:\s+DATE)?[:\s]+(\d{1,2}[/\-]\d{2,4})"#,
         #"(?i)Expiry[:\s]+(\d{1,2}[/\-]\d{2,4})"#,
         #"(?i)Exp[:\s]+(\d{1,2}[/\-]\d{2,4})"#
@@ -279,7 +279,7 @@ class PPSRCard: Identifiable {
         // Case-insensitive Swift Regex patterns, precompiled for performance
         for regex in Self.ccnumRegexes {
             if let match = combined.firstMatch(of: regex) {
-                let digits = String(match.output.1)
+                let digits = String(match.output[1].substring!)
                 if digits.count >= 13, digits.count <= 19 {
                     ccnum = digits
                     break
@@ -289,14 +289,14 @@ class PPSRCard: Identifiable {
 
         for regex in Self.cvvRegexes {
             if let match = combined.firstMatch(of: regex) {
-                cvv = String(match.output.1)
+                cvv = String(match.output[1].substring!)
                 break
             }
         }
 
         for regex in Self.expRegexes {
             if let match = combined.firstMatch(of: regex) {
-                expDate = String(match.output.1)
+                expDate = String(match.output[1].substring!)
                 break
             }
         }
