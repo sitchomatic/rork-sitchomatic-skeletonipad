@@ -208,6 +208,175 @@ final class RorkToolkitService {
         return await analyzeScreenshotWithVision(image: image, prompt: prompt)
     }
 
+    // MARK: Unified Vision Analysis
+
+    func analyzeUnifiedVision(image: UIImage, context: VisionContext) async -> VisionOutcome? {
+        guard let key = apiKey, !key.isEmpty else {
+            logger.log("GrokUnifiedVision: no API key", category: .automation, level: .error)
+            return nil
+        }
+
+        guard let base64 = encodeImageForVision(image) else {
+            logger.log("GrokUnifiedVision: failed to encode image", category: .automation, level: .error)
+            return nil
+        }
+
+        let prompt = buildUnifiedPrompt(for: context)
+
+        let body: [String: Any] = [
+            "model": GrokModel.vision.rawValue,
+            "messages": [
+                [
+                    "role": "user",
+                    "content": [
+                        ["type": "image_url", "image_url": ["url": "data:image/jpeg;base64,\(base64)"]],
+                        ["type": "text", "text": prompt],
+                    ],
+                ]
+            ],
+            "temperature": 0.1,
+        ]
+
+        guard let rawResponse = await callWithRetry(
+            endpoint: "/v1/chat/completions",
+            body: body,
+            key: key,
+            model: GrokModel.vision.rawValue
+        ) else {
+            return nil
+        }
+
+        return parseUnifiedVisionResponse(rawResponse, context: context)
+    }
+
+    private func buildUnifiedPrompt(for context: VisionContext) -> String {
+        switch context.phase {
+        case .login, .disabledCheck:
+            return """
+            Analyze this casino/gambling website screenshot. Determine the EXACT login outcome.
+
+            Answer ONLY with JSON:
+            {
+              "outcome": "success|noAcc|permDisabled|tempDisabled|smsDetected|unsure",
+              "confidence": 90,
+              "reasoning": "brief explanation",
+              "errorText": "",
+              "isPageSettled": true,
+              "isPageBlank": false
+            }
+
+            Rules:
+            - outcome="success" if you see a lobby, dashboard, game grid, user balance, "recommended for you", "last played" — NOT the login form
+            - outcome="permDisabled" if text says "has been disabled" (permanent ban)
+            - outcome="tempDisabled" if text says "temporarily disabled"
+            - outcome="noAcc" if you see "incorrect", "invalid", "wrong password", red error banner with login error
+            - outcome="smsDetected" if you see SMS verification, "enter the code", phone verification
+            - outcome="unsure" if you cannot determine the result
+            - isPageSettled=false if the page appears to still be loading (spinners, progress bars)
+            - isPageBlank=true if the page is mostly white/black with no content
+            - errorText = exact error message text visible, empty string if none
+            - confidence = 0-100 how confident you are
+            """
+        case .settlement:
+            return """
+            Analyze this website screenshot to determine if the page has settled after a form submission.
+
+            Answer ONLY with JSON:
+            {
+              "outcome": "success|noAcc|permDisabled|tempDisabled|smsDetected|unsure",
+              "confidence": 90,
+              "reasoning": "brief explanation",
+              "errorText": "",
+              "isPageSettled": true,
+              "isPageBlank": false
+            }
+
+            Rules:
+            - isPageSettled=true if the page has finished loading and shows a clear result
+            - isPageSettled=false if you see loading spinners, progress indicators, or the page looks mid-transition
+            - Apply the same outcome rules as login analysis
+            - If the page is still loading, set outcome="unsure" and isPageSettled=false
+            """
+        case .ppsr:
+            return """
+            Analyze this Australian PPSR vehicle check payment page screenshot.
+
+            Answer ONLY with JSON:
+            {
+              "outcome": "success|noAcc|unsure",
+              "confidence": 90,
+              "reasoning": "brief explanation",
+              "errorText": "",
+              "isPageSettled": true,
+              "isPageBlank": false,
+              "ppsrPassed": false,
+              "ppsrDeclined": false
+            }
+
+            Rules:
+            - ppsrPassed=true and outcome="success" if you see a PPSR certificate, success message, or confirmation
+            - ppsrDeclined=true and outcome="noAcc" if you see "declined", "payment failed", "card declined", "insufficient funds"
+            - outcome="unsure" if unclear
+            """
+        }
+    }
+
+    private func parseUnifiedVisionResponse(_ raw: String, context: VisionContext) -> VisionOutcome {
+        let cleaned = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        let jsonStr: String
+        if let start = cleaned.range(of: "{"), let end = cleaned.range(of: "}", options: .backwards) {
+            jsonStr = String(cleaned[start.lowerBound...end.upperBound])
+        } else {
+            jsonStr = cleaned
+        }
+
+        if let data = jsonStr.data(using: .utf8),
+           let dict = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+            let outcomeStr = dict["outcome"] as? String ?? "unsure"
+            let outcome: LoginOutcome
+            switch outcomeStr.lowercased() {
+            case "success": outcome = .success
+            case "noacc": outcome = .noAcc
+            case "permdisabled": outcome = .permDisabled
+            case "tempdisabled": outcome = .tempDisabled
+            case "smsdetected": outcome = .smsDetected
+            default: outcome = .unsure
+            }
+
+            return VisionOutcome(
+                outcome: outcome,
+                confidence: dict["confidence"] as? Int ?? 50,
+                reasoning: dict["reasoning"] as? String ?? outcomeStr,
+                errorText: dict["errorText"] as? String ?? "",
+                isPageSettled: dict["isPageSettled"] as? Bool ?? true,
+                isPageBlank: dict["isPageBlank"] as? Bool ?? false,
+                ppsrPassed: dict["ppsrPassed"] as? Bool ?? false,
+                ppsrDeclined: dict["ppsrDeclined"] as? Bool ?? false,
+                rawResponse: raw
+            )
+        }
+
+        let lower = raw.lowercased()
+        let outcome: LoginOutcome
+        if lower.contains("has been disabled") { outcome = .permDisabled }
+        else if lower.contains("temporarily disabled") { outcome = .tempDisabled }
+        else if lower.contains("lobby") || lower.contains("dashboard") { outcome = .success }
+        else if lower.contains("incorrect") || lower.contains("invalid") { outcome = .noAcc }
+        else { outcome = .unsure }
+
+        return VisionOutcome(
+            outcome: outcome,
+            confidence: 30,
+            reasoning: "Parsed from raw text",
+            errorText: "",
+            isPageSettled: true,
+            isPageBlank: false,
+            ppsrPassed: lower.contains("certificate") || lower.contains("passed"),
+            ppsrDeclined: lower.contains("declined") || lower.contains("institution"),
+            rawResponse: raw
+        )
+    }
+
     // MARK: API Test
 
     func testConnection() async -> (success: Bool, latencyMs: Int, model: String) {

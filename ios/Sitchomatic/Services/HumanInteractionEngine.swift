@@ -192,9 +192,8 @@ class HumanInteractionEngine {
                     let recovery = await buttonRecovery.waitForRecovery(
                         originalFingerprint: fingerprint,
                         executeJS: executeJS,
-                        host: currentHost,
-                        sessionId: sessionId,
-                        maxTimeoutMs: buttonRecoveryTimeoutMs
+                        maxTimeoutMs: buttonRecoveryTimeoutMs,
+                        sessionId: sessionId
                     )
                     logger.log("TrueDetection: button recovery \(recovery.recovered ? "OK" : "TIMEOUT") in \(recovery.durationMs)ms", category: .automation, level: recovery.recovered ? .success : .warning, sessionId: sessionId)
                 } else {
